@@ -23,7 +23,7 @@ func setup(new_game:Node,index:int,new_kind:String,current_data:Variant)->void:
 			var icon:=Sprite2D.new();icon.texture=texture;icon.position=size*.5;var fit:=minf((size.x-12.0)/texture.get_width(),(size.y-12.0)/texture.get_height());icon.scale=Vector2.ONE*fit;add_child(icon)
 		else:
 			var icon:=Label.new();icon.text=display.icon;icon.position=Vector2.ZERO;icon.size=size;icon.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;icon.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;icon.add_theme_font_size_override("font_size",34);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(icon)
-		if slot_kind!="ingredient":tooltip_text=display.tooltip+" — right-click to remove"
+		if slot_kind!="ingredient":tooltip_text=display.tooltip+" — tap for details"
 
 func _can_drop_data(_at_position:Vector2,data:Variant)->bool:
 	return data is Dictionary and data.get("kind","")==slot_kind and game.can_drop_cooking_item(slot_kind,data,slot_index)

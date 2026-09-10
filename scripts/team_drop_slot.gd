@@ -3,11 +3,13 @@ extends Panel
 
 signal quiblet_dropped(slot_index: int, roster_index: int)
 signal remove_requested(slot_index: int)
+signal member_selected(roster_index: int)
 
 var slot_index := 0
 var roster_index := -1
 var controller:Node
 var team_drag_started:=false
+var suppress_next_release:=false
 
 func setup(index: int, occupant_roster_index := -1, owner_controller:Node=null) -> void:
 	slot_index = index
@@ -20,7 +22,7 @@ func _get_drag_data(_at_position:Vector2)->Variant:
 	if controller!=null:
 		var data:Dictionary=controller.take_team_member_for_drag(slot_index,roster_index)
 		if data.is_empty():return null
-		var preview:=duplicate();preview.modulate.a=.86;preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;set_drag_preview(preview);team_drag_started=true
+		var preview:=duplicate();preview.modulate.a=.86;preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;set_drag_preview(preview);team_drag_started=true;suppress_next_release=true
 		return data
 	var preview:=duplicate();preview.modulate.a=.86;preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;set_drag_preview(preview)
 	return {"kind":"quiblet","roster_index":roster_index}
@@ -39,3 +41,6 @@ func _drop_data(_at_position: Vector2, data: Variant) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		remove_requested.emit(slot_index)
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
+		if suppress_next_release:suppress_next_release=false
+		elif roster_index>=0:member_selected.emit(roster_index)

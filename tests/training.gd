@@ -137,13 +137,19 @@ func run()->void:
 	check(game.training_foods==["Sunplum","Bitterleaf"],"Two food slots hold two ingredients")
 	var trainee_slot:Control=game.content.find_child("TraineeSlot",true,false);var food_slot:Control=game.content.find_child("FoodSlot1",true,false);var helper_slot:Control=game.content.find_child("HelperSlot0",true,false)
 	check(not trainee_slot.find_children("*","QuibletPortrait",true,false).is_empty() and food_slot.get_child_count()>0 and helper_slot.find_children("*","Label",true,false).any(func(item):return item.text=="+25%"),"Filled sockets show their occupant and helper contribution")
+	var tap_release:=InputEventMouseButton.new();tap_release.button_index=MOUSE_BUTTON_LEFT;tap_release.pressed=false
+	food_slot._gui_input(tap_release);await process_frame
+	check(game.training_foods[1].is_empty(),"Tapping a filled training slot clears it on a touch-only device")
+	game.assign_training_slot("food",1,{"kind":"ingredient","name":"Bitterleaf"});await process_frame
+	helper_slot=game.content.find_child("HelperSlot0",true,false);helper_slot.suppress_next_release=true;helper_slot._gui_input(tap_release)
+	check(game.training_helpers[0]==twin and not helper_slot.suppress_next_release,"The release at the end of a drag does not also clear its training slot")
 	var trainee:Dictionary=game.roster[trainee_index];var moves_before:int=trainee.moves.size()
 	# Move training shows the trainee's moves with their stone slots and needs one picked.
 	trainee.moves[0].slots=2;trainee.moves[0].stones=["echo"];game.show_training();await process_frame
 	var moves_panel:Control=game.content.find_child("TrainingMoves",true,false)
 	check(moves_panel!=null and moves_panel.find_children("RetrainMove*","Button",true,false).size()==moves_before,"Move training lists every move of the trainee as a clickable row")
 	check(moves_panel.find_children("TrainingMoveIcon*","",true,false).size()==moves_before and moves_panel.find_children("TrainingStoneSlot0_*","",true,false).size()==2 and moves_panel.find_child("TrainingStoneSlot0_0",true,false).get_child_count()==1 and moves_panel.find_child("TrainingStoneSlot1_0",true,false).get_child_count()==0,"Each row shows the move icon, its Move Stone slots, and fitted stones")
-	check(game.training_move<0 and game.content.find_child("TrainingSummary",true,false).text.contains("Click one of"),"No move is selected until the player clicks one")
+	check(game.training_move<0 and game.content.find_child("TrainingSummary",true,false).text.contains("Select one of"),"No move is selected until the player selects one")
 	game.last_training_result={};game.run_training();await process_frame
 	check(game.last_training_result.is_empty() and game.ingredients["Sunplum"]==1 and game.roster.size()==roster_size,"Training refuses to run before a move is chosen and spends nothing")
 	moves_panel.find_child("RetrainMove0",true,false).pressed.emit();await process_frame

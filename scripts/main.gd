@@ -561,7 +561,7 @@ func build_team_drop_slot(parent:Control,slot_index:int,pos:Vector2)->void:
 		var q:Dictionary=roster[team_indices[slot_index]];var portrait:=QuibletPortrait.new();portrait.position=Vector2(17,9);portrait.size=Vector2(62,66);portrait.setup(int(q.species),.9);portrait.mouse_filter=Control.MOUSE_FILTER_IGNORE;slot.add_child(portrait)
 		label(slot,GameData.display_name(q),Vector2(4,80),10,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,88)
 	else:label(slot,"DROP HERE",Vector2(4,45),9,GameData.COLORS.muted,true,HORIZONTAL_ALIGNMENT_CENTER,88)
-	slot.quiblet_dropped.connect(assign_team_slot);slot.remove_requested.connect(remove_team_slot)
+	slot.quiblet_dropped.connect(assign_team_slot);slot.remove_requested.connect(remove_team_slot);slot.member_selected.connect(select_roster_quiblet)
 
 # The owned list runs from the highest level down; Quiblets on the same level
 # keep their order of arrival.
@@ -611,7 +611,10 @@ func build_quiblet_info(parent:Control,q:Dictionary,with_button:bool)->void:
 		add_quiblet_stat_badge(parent,Vector2(500,68),Vector2(150,34),"res://textures/UI/AttackIcon.png",GameData.attack(q),Color("#df5b55"),"AttackStatBadge")
 	var stat_y:=124.0 if with_button else 92.0
 	label(parent,"%s • %s range"%[GameData.species(int(q.species)).element,"long" if is_long_range(q) else "short"],Vector2(18,200) if with_button else Vector2(left+245,stat_y+7),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,424 if with_button else 205)
-	if with_button:add_button(parent,"POWER STONES",Vector2(175,264),Vector2(252,54),show_quiblet_edit,"leaf")
+	if with_button:
+		var in_team:=team_indices.has(selected_roster)
+		var team_button:=add_button(parent,"REMOVE FROM TEAM" if in_team else "ADD TO TEAM",Vector2(175,208),Vector2(252,44),func():toggle_team_member(selected_roster),"coral" if in_team else "leaf");team_button.name="TeamMembershipButton"
+		add_button(parent,"POWER STONES",Vector2(175,264),Vector2(252,54),show_quiblet_edit,"leaf")
 
 func build_short_quiblet_info(parent:Control,q:Dictionary)->void:
 	var portrait:=QuibletPortrait.new();portrait.position=Vector2(12,10);portrait.size=Vector2(132,154);portrait.setup(int(q.species),1.03);parent.add_child(portrait)
@@ -622,6 +625,8 @@ func build_short_quiblet_info(parent:Control,q:Dictionary)->void:
 	var separator:=HSeparator.new();separator.position=Vector2(154,90);separator.size=Vector2(286,2);parent.add_child(separator)
 	add_quiblet_stat_badge(parent,Vector2(154,99),Vector2(150,32),"res://textures/UI/HealthIcon.png",GameData.max_hp(q),Color("#4b9fda"),"HealthStatBadge")
 	add_quiblet_stat_badge(parent,Vector2(154,137),Vector2(150,32),"res://textures/UI/AttackIcon.png",GameData.attack(q),Color("#df5b55"),"AttackStatBadge")
+	var in_team:=team_indices.has(selected_roster)
+	var team_button:=add_button(parent,"REMOVE" if in_team else "ADD TO TEAM",Vector2(319,49),Vector2(121,48),func():toggle_team_member(selected_roster),"coral" if in_team else "leaf");team_button.name="TeamMembershipButton"
 	add_button(parent,"POWER STONES",Vector2(319,105),Vector2(121,48),show_quiblet_edit,"leaf")
 
 func build_narrow_quiblet_info(parent:Control,q:Dictionary)->void:
@@ -634,6 +639,8 @@ func build_narrow_quiblet_info(parent:Control,q:Dictionary)->void:
 	var separator:=HSeparator.new();separator.position=Vector2(18,311);separator.size=Vector2(214,2);parent.add_child(separator)
 	add_quiblet_stat_badge(parent,Vector2(50,333),Vector2(150,34),"res://textures/UI/HealthIcon.png",GameData.max_hp(q),Color("#4b9fda"),"HealthStatBadge")
 	add_quiblet_stat_badge(parent,Vector2(50,373),Vector2(150,34),"res://textures/UI/AttackIcon.png",GameData.attack(q),Color("#df5b55"),"AttackStatBadge")
+	var in_team:=team_indices.has(selected_roster)
+	var team_button:=add_button(parent,"REMOVE FROM TEAM" if in_team else "ADD TO TEAM",Vector2(20,491),Vector2(210,44),func():toggle_team_member(selected_roster),"coral" if in_team else "leaf");team_button.name="TeamMembershipButton"
 	add_button(parent,"POWER STONES",Vector2(20,548),Vector2(210,54),show_quiblet_edit,"leaf")
 
 func style_quiblet_xp_bar(bar:ProgressBar)->void:
@@ -743,7 +750,7 @@ func show_quiblet_edit()->void:
 	for slot_index in 16:build_power_slot(power_grid,q,slot_index,Vector2((slot_index%4)*66,(slot_index/4)*66))
 	var right:=panel(Rect2(868,68,384,624),Color("#f6f8f6"),18);content.add_child(right);right.name="StoneInventory"
 	build_stone_detail(right)
-	var separator:=HSeparator.new();separator.position=Vector2(16,164);separator.size=Vector2(352,2);right.add_child(separator)
+	var separator:=HSeparator.new();separator.position=Vector2(16,204);separator.size=Vector2(352,2);right.add_child(separator)
 	build_equipment_inventory(right)
 
 func build_edit_move_cluster(parent:Control,entry:Dictionary,move_index:int,pos:Vector2)->void:
@@ -851,7 +858,7 @@ func power_stone_inventory_data(stone:Dictionary,inventory_index:int)->Dictionar
 func build_stone_detail(parent:Control)->void:
 	if selected_inventory_item.is_empty():
 		label(parent,"SELECT A STONE",Vector2(18,22),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,348)
-		label(parent,"Click a stone below to see what it does.",Vector2(22,61),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,340);return
+		label(parent,"Select a stone below to see what it does.",Vector2(22,61),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,340);return
 	var data:=selected_inventory_item;var title:=str(data.get("display_name","Stone"));var title_label:=label(parent,title,Vector2(18,18),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,348);title_label.name="StoneDetailTitle"
 	if data.kind=="power_stone":
 		var stone:=GameData.normalize_power_stone(data)
@@ -863,13 +870,25 @@ func build_stone_detail(parent:Control)->void:
 		description.text="\n".join(bonus_lines) if not bonus_lines.is_empty() else "No bonus stats."
 		parent.add_child(description)
 		if data.get("fitted",false):
-			var fitted_note:=label(parent,"Fitted on %s. Take it off the Quiblet to recycle or rework it."%str(data.get("owner","")),Vector2(18,153),11,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_CENTER,348);fitted_note.name="FittedStoneNote"
+			var fitted_note:=label(parent,"Fitted on %s."%str(data.get("owner","")),Vector2(18,136),11,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_CENTER,348);fitted_note.name="FittedStoneNote"
+			var remove:=add_button(parent,"REMOVE FROM QUIBLET",Vector2(18,163),Vector2(348,34),func(item=data.duplicate(true)):remove_selected_fitted_stone(item),"coral");remove.name="RemoveFittedStone"
 		# Only unfitted inventory stones can be recycled; a fitted stone is inspected in place.
 		if int(data.get("inventory_index",-1))>=0:
 			var recycle:=add_button(parent,"RECYCLE FOR %d INGREDIENTS"%power_stone_recycle_count(stone),Vector2(18,158),Vector2(348,34),func(index=int(data.inventory_index)):request_recycle_power_stone(index),"leaf");recycle.name="RecyclePowerStone"
 	else:
 		var info:Dictionary=GameData.stone_info(str(data.effect));var icon:=TextureRect.new();icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.custom_minimum_size=Vector2.ZERO;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.texture=load(info.texture);icon.position=Vector2(20,54);icon.size=Vector2(50,50);parent.add_child(icon)
 		var description:=RichTextLabel.new();description.name="StoneDetailDescription";description.text=str(info.desc);description.position=Vector2(82,53);description.size=Vector2(270,96);description.custom_minimum_size=Vector2.ZERO;description.fit_content=false;description.scroll_active=false;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;description.add_theme_font_size_override("normal_font_size",11);description.add_theme_color_override("default_color",GameData.COLORS.ink);parent.add_child(description)
+		if data.get("fitted",false):
+			var remove:=add_button(parent,"REMOVE FROM QUIBLET",Vector2(18,163),Vector2(348,34),func(item=data.duplicate(true)):remove_selected_fitted_stone(item),"coral");remove.name="RemoveFittedStone"
+
+func remove_selected_fitted_stone(data:Dictionary)->void:
+	if data.get("kind","")=="power_stone":
+		var roster_index:=int(data.get("roster_index",-1));var slot_index:=int(data.get("slot_index",-1))
+		if roster_index<0 or roster_index>=roster.size():return
+		var q:Dictionary=roster[roster_index];ensure_quiblet_equipment(q)
+		if slot_index<0 or slot_index>=q.power_slot_stones.size() or q.power_slot_stones[slot_index].is_empty():return
+		power_stone_inventory.append(q.power_slot_stones[slot_index]);q.power_slot_stones[slot_index]={};selected_inventory_item.clear();show_quiblet_edit();return
+	remove_equipped_stone("move",int(data.get("move_index",-1)),int(data.get("stone_index",-1)))
 
 # Every owned Power Stone, unfitted and fitted alike, in one order: Health before
 # Attack, then stronger first. Fitted entries carry their owner and never an
@@ -911,7 +930,7 @@ func build_equipment_inventory(parent:Control)->void:
 		var count:=int(move_stone_inventory.get(stone.effect,0))
 		for copy_index in count:entries.append({"kind":"move_stone","effect":str(stone.effect),"count":1,"copy_index":copy_index,"display_name":str(stone.name)})
 	var page_count:=maxi(1,ceili(entries.size()/16.0));stone_inventory_page=clampi(stone_inventory_page,0,page_count-1)
-	var grid:=GridContainer.new();grid.name="StoneIconGrid";grid.position=Vector2(16,182);grid.size=Vector2(STONE_GRID_WIDTH,326);grid.columns=STONE_GRID_COLUMNS;grid.add_theme_constant_override("h_separation",STONE_GRID_GAP);grid.add_theme_constant_override("v_separation",STONE_GRID_GAP);parent.add_child(grid)
+	var grid:=GridContainer.new();grid.name="StoneIconGrid";grid.position=Vector2(16,222);grid.size=Vector2(STONE_GRID_WIDTH,326);grid.columns=STONE_GRID_COLUMNS;grid.add_theme_constant_override("h_separation",STONE_GRID_GAP);grid.add_theme_constant_override("v_separation",STONE_GRID_GAP);parent.add_child(grid)
 	var page_start:=stone_inventory_page*16;var page_end:=mini(entries.size(),page_start+16)
 	for entry_index in range(page_start,page_end):add_stone_inventory_card(grid,entries[entry_index])
 	if entries.is_empty():label(grid,"No stones owned",Vector2(0,20),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,STONE_GRID_WIDTH)
@@ -1075,11 +1094,11 @@ func remove_equipped_stone(kind:String,primary_index:int,secondary_index:int)->v
 	if kind=="power":
 		var stone:Dictionary=q.power_slot_stones[primary_index]
 		if stone.is_empty():return
-		power_stone_inventory.append(stone);q.power_slot_stones[primary_index]={}
+		power_stone_inventory.append(stone);q.power_slot_stones[primary_index]={};selected_inventory_item.clear()
 		show_quiblet_edit();return
 	var effect:=detach_fitted_stone(primary_index,secondary_index)
 	if effect.is_empty():return
-	move_stone_inventory[effect]=int(move_stone_inventory.get(effect,0))+1
+	move_stone_inventory[effect]=int(move_stone_inventory.get(effect,0))+1;selected_inventory_item.clear()
 	show_quiblet_edit();toast("Move Stone removed.",GameData.COLORS.muted)
 
 func show_legacy_team() -> void:
@@ -1386,19 +1405,25 @@ func show_cooking() -> void:
 	# Selected ingredient information.
 	var info_panel:=panel(Rect2(624,181,626,98),Color("#fffaf0"),14);info_panel.clip_contents=true;info_panel.name="CookingItemInfo";content.add_child(info_panel)
 	if not selected_cooking_item.is_empty():
-		if selected_cooking_item.kind=="spice":
+		if selected_cooking_item.kind=="ingredient":
+			var ingredient_name:=str(selected_cooking_item.name);var selected_info:Dictionary=GameData.INGREDIENTS[ingredient_name];var selected_icon:=add_ingredient_icon(info_panel,selected_info,Vector2(14,12),Vector2(48,66),38);selected_icon.name="SelectedIngredientIcon"
+			label(info_panel,ingredient_name,Vector2(73,8),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,400).name="SelectedItemName"
+			label(info_panel,ingredient_tag_text(selected_info),Vector2(73,36),13,Color.BLACK)
+			label(info_panel,selected_info.feel,Vector2(73,61),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,535)
+		elif selected_cooking_item.kind=="spice":
 			var spice_name:=str(selected_cooking_item.name);var quality:=str(selected_cooking_item.quality);var spice_info:Dictionary=GameData.SPICES.get(spice_name,{})
 			label(info_panel,str(spice_info.get("icon","✦")),Vector2(18,14),40,spice_quality_color(quality),false,HORIZONTAL_ALIGNMENT_CENTER,48)
-			label(info_panel,"%s (%s)"%[spice_name,quality.capitalize()],Vector2(73,8),18,GameData.COLORS.ink,true).name="SelectedItemName"
+			label(info_panel,"%s (%s)"%[spice_name,quality.capitalize()],Vector2(73,8),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,400).name="SelectedItemName"
 			label(info_panel,"Favors %s • bias ×%.2f"%[str(spice_info.get("favors","matching Quiblets")),spice_strength(quality)],Vector2(73,36),13,Color.BLACK)
 			label(info_panel,"Arrival keeps %s. Spices bias which eligible Quiblet arrives from the finished stew."%GameData.spice_stat_text(spice_name,quality),Vector2(73,61),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,535)
 		else:
 			var special_id:=str(selected_cooking_item.id);var display:=cooking_slot_display("special",special_id)
 			label(info_panel,str(display.icon),Vector2(18,14),40,display.color,false,HORIZONTAL_ALIGNMENT_CENTER,48)
-			label(info_panel,special_id.trim_prefix("Leftovers:")+(" Leftovers" if special_id.begins_with("Leftovers:") else ""),Vector2(73,8),18,GameData.COLORS.ink,true).name="SelectedItemName"
+			label(info_panel,special_id.trim_prefix("Leftovers:")+(" Leftovers" if special_id.begins_with("Leftovers:") else ""),Vector2(73,8),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,400).name="SelectedItemName"
 			label(info_panel,special_item_description(special_id),Vector2(73,40),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,535)
+		var remove:=add_button(info_panel,"REMOVE",Vector2(494,8),Vector2(114,36),func(kind=str(selected_cooking_item.kind),slot_index=int(selected_cooking_item.slot_index)):clear_cooking_item(kind,slot_index,true),"coral");remove.name="RemoveCookingItem"
 	elif selected_cooking_ingredient.is_empty():
-		label(info_panel,"INGREDIENT INFO",Vector2(17,13),15,GameData.COLORS.ink,true);label(info_panel,"Click any unlocked ingredient below to learn about it.",Vector2(17,46),13,GameData.COLORS.muted)
+		label(info_panel,"INGREDIENT INFO",Vector2(17,13),15,GameData.COLORS.ink,true);label(info_panel,"Select any unlocked ingredient below to learn about it.",Vector2(17,46),13,GameData.COLORS.muted)
 	else:
 		var selected_info:Dictionary=GameData.INGREDIENTS[selected_cooking_ingredient];var selected_icon:=add_ingredient_icon(info_panel,selected_info,Vector2(14,12),Vector2(48,66),38);selected_icon.name="SelectedIngredientIcon";label(info_panel,selected_cooking_ingredient,Vector2(73,8),18,GameData.COLORS.ink,true);label(info_panel,ingredient_tag_text(selected_info),Vector2(73,36),13,Color.BLACK);label(info_panel,selected_info.feel,Vector2(73,61),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,535)
 	# Ingredient, spice, and special-item sources.
@@ -1515,6 +1540,9 @@ func clear_cooking_item(kind:String,slot_index:int,refund:=true,redraw:=true)->v
 			if old_id in ["Bountiful Berry","Empty Leftover Jar"]:special_items[old_id]+=1
 			else:leftovers[old_id.trim_prefix("Leftovers:")]=int(leftovers.get(old_id.trim_prefix("Leftovers:"),0))+1
 		special_slots[slot_index]=""
+	if selected_cooking_item.get("kind","")==kind and int(selected_cooking_item.get("slot_index",-1))==slot_index:
+		selected_cooking_item.clear()
+		if kind=="ingredient":selected_cooking_ingredient=""
 	if redraw:show_cooking()
 
 func validate_special_slots()->void:
@@ -1595,11 +1623,11 @@ func select_cooking_ingredient(name:String)->void:
 func inspect_cooking_item(kind:String,slot_index:int)->void:
 	# Clicking a filled pot, spice, or special slot shows that item in the info panel.
 	if kind=="ingredient":
-		if slot_index>=0 and slot_index<pot_slots.size() and not pot_slots[slot_index].is_empty():select_cooking_ingredient(pot_slots[slot_index])
+		if slot_index>=0 and slot_index<pot_slots.size() and not pot_slots[slot_index].is_empty():selected_cooking_ingredient=pot_slots[slot_index];selected_cooking_item={"kind":"ingredient","name":pot_slots[slot_index],"slot_index":slot_index};show_cooking()
 	elif kind=="spice":
-		if slot_index>=0 and slot_index<spice_slots.size() and not spice_slots[slot_index].is_empty():selected_cooking_ingredient="";selected_cooking_item={"kind":"spice","name":str(spice_slots[slot_index].name),"quality":str(spice_slots[slot_index].quality)};show_cooking()
+		if slot_index>=0 and slot_index<spice_slots.size() and not spice_slots[slot_index].is_empty():selected_cooking_ingredient="";selected_cooking_item={"kind":"spice","name":str(spice_slots[slot_index].name),"quality":str(spice_slots[slot_index].quality),"slot_index":slot_index};show_cooking()
 	elif kind=="special":
-		if slot_index>=0 and slot_index<special_slots.size() and not special_slots[slot_index].is_empty():selected_cooking_ingredient="";selected_cooking_item={"kind":"special","id":special_slots[slot_index]};show_cooking()
+		if slot_index>=0 and slot_index<special_slots.size() and not special_slots[slot_index].is_empty():selected_cooking_ingredient="";selected_cooking_item={"kind":"special","id":special_slots[slot_index],"slot_index":slot_index};show_cooking()
 
 func special_item_description(special_id:String)->String:
 	if special_id.begins_with("Leftovers:"):return "Leftovers from %s. Reinvesting them improves this stew's recipe precision."%special_id.trim_prefix("Leftovers:")
@@ -1618,7 +1646,7 @@ func inspect_equipment(kind:String,primary_index:int,secondary_index:int)->void:
 		if secondary_index<0 or secondary_index>=entry.stones.size():return
 		var effect:=GameData.stone_effect(str(entry.stones[secondary_index]))
 		if effect.is_empty():return
-		select_inventory_stone({"kind":"move_stone","effect":effect,"count":int(move_stone_inventory.get(effect,0)),"display_name":str(GameData.stone_info(effect).name),"inventory_index":-1})
+		select_inventory_stone({"kind":"move_stone","effect":effect,"count":int(move_stone_inventory.get(effect,0)),"display_name":str(GameData.stone_info(effect).name),"inventory_index":-1,"fitted":true,"move_index":primary_index,"stone_index":secondary_index})
 
 func ingredient_quality_points()->float:
 	var total_points:=0.0
@@ -1846,16 +1874,16 @@ func build_training_section(parent:Control)->void:
 	var move_mode:=training_mode=="move"
 	# Move training keeps the trainee on the left with its moves beside it; EXP training centres the trainee.
 	if move_mode:
-		label(parent,"TRAINEE",Vector2(18,54),12,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_LEFT,140)
+		label(parent,"TRAINEE"+(" • TAP TO CLEAR" if training_trainee>=0 else ""),Vector2(18,54),12,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_LEFT,140)
 		build_training_slot(parent,"trainee",0,Vector2(40,70),Vector2(96,108))
 		build_training_moves(parent,Rect2(150,54,392,176))
 	else:
-		label(parent,"TRAINEE",Vector2(18,54),12,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_CENTER,524)
+		label(parent,"TRAINEE"+(" • TAP TO CLEAR" if training_trainee>=0 else ""),Vector2(18,54),12,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_CENTER,524)
 		build_training_slot(parent,"trainee",0,Vector2(232,70),Vector2(96,108))
 	# Four helpers in a row, with the two food sockets stacked beside them.
-	label(parent,"HELPERS (CONSUMED)",Vector2(18,236),12,GameData.COLORS.leaf_dark,true,HORIZONTAL_ALIGNMENT_CENTER,416)
+	label(parent,"HELPERS (CONSUMED • TAP FILLED SLOT TO CLEAR)",Vector2(18,236),12,GameData.COLORS.leaf_dark,true,HORIZONTAL_ALIGNMENT_CENTER,416)
 	for i in 4:build_training_slot(parent,"helper",i,Vector2(18+i*104,252),Vector2(96,84))
-	label(parent,"FOOD",Vector2(446,236),12,GameData.COLORS.gold.darkened(.25),true,HORIZONTAL_ALIGNMENT_CENTER,96)
+	label(parent,"FOOD • TAP",Vector2(446,236),12,GameData.COLORS.gold.darkened(.25),true,HORIZONTAL_ALIGNMENT_CENTER,96)
 	for i in 2:build_training_slot(parent,"food",i,Vector2(446,252+i*44),Vector2(96,40))
 	var tray:=panel(Rect2(18,344,524,165),Color("#ffffffb0"),12);parent.add_child(tray);tray.name="TrainingIngredientTray"
 	var grid:=GridContainer.new();grid.name="TrainingIngredientGrid";grid.position=Vector2(2,5);grid.columns=8;grid.scale=Vector2.ONE*.9;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",8);tray.add_child(grid)
@@ -2047,7 +2075,7 @@ func training_summary_text()->String:
 	var preserve_line:String="Add at least one helper." if helpers.is_empty() else "Chance to keep: "+", ".join(preserve_parts)
 	if training_mode=="move":
 		if GameData.retrain_pool(trainee).is_empty():return "%s already knows every move it can learn."%trainee_name
-		if training_move<0:return "Click one of %s's moves to retrain."%trainee_name
+		if training_move<0:return "Select one of %s's moves to retrain."%trainee_name
 		return "Retraining %s: %d%% success chance\n%s"%[str(trainee.moves[training_move].name),roundi(GameData.move_training_chance(trainee,helpers)),preserve_line]
 	return "%s would gain %d EXP.\n%s"%[trainee_name,GameData.exp_training_reward(trainee,helpers),preserve_line]
 
@@ -2060,7 +2088,7 @@ func training_problem()->String:
 	var trainee:Dictionary=roster[training_trainee];var trainee_name:=GameData.display_name(trainee)
 	if training_helper_indices().is_empty():return "Add at least one helper."
 	if training_mode=="move" and GameData.retrain_pool(trainee).is_empty():return "%s already knows every move it can learn."%trainee_name
-	if training_mode=="move" and (training_move<0 or training_move>=trainee.moves.size()):return "Click one of %s's moves to retrain."%trainee_name
+	if training_mode=="move" and (training_move<0 or training_move>=trainee.moves.size()):return "Select one of %s's moves to retrain."%trainee_name
 	return ""
 
 func training_helper_indices()->Array[int]:

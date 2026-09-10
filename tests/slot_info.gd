@@ -24,9 +24,10 @@ func run()->void:
 	check(power_slot!=null and move_slot!=null and empty_slot!=null,"Test needs the fitted and empty slots on screen")
 	click(power_slot);await process_frame
 	check(game.selected_inventory_item.get("kind","")=="power_stone" and int(game.selected_inventory_item.get("power",0))==int(fitted_stone.power) and game.content.find_child("StoneDetailTitle",true,false)!=null and game.content.find_child("PowerStoneBonusDescription",true,false).text.contains("Movement Speed: +10% movement speed"),"Clicking a fitted Power Stone opens its detail with exact bonus effects")
+	check(game.content.find_child("RemoveFittedStone",true,false)!=null,"A fitted Power Stone's detail offers a visible touch-friendly remove button")
 	check(game.roster[0].power_slot_stones[0].power==fitted_stone.power and game.power_stone_inventory.is_empty(),"Inspecting a fitted stone must not unequip it")
 	move_slot=game.content.find_child("MoveStoneSlot0_0",true,false);click(move_slot);await process_frame
-	check(game.selected_inventory_item.get("kind","")=="move_stone" and game.selected_inventory_item.get("effect","")=="echo" and game.content.find_child("StoneDetailDescription",true,false)!=null,"Clicking a fitted Move Stone opens its detail")
+	check(game.selected_inventory_item.get("kind","")=="move_stone" and game.selected_inventory_item.get("effect","")=="echo" and game.selected_inventory_item.get("fitted",false) and game.content.find_child("StoneDetailDescription",true,false)!=null and game.content.find_child("RemoveFittedStone",true,false)!=null,"Clicking a fitted Move Stone opens its detail with a touch-friendly remove button")
 	check(game.roster[0].moves[0].stones==["echo"],"Inspecting a fitted Move Stone must not detach it")
 	var selection_before:Dictionary=game.selected_inventory_item.duplicate(true)
 	empty_slot=game.content.find_child("PowerStoneSlot3",true,false);click(empty_slot);await process_frame
@@ -35,6 +36,9 @@ func run()->void:
 	power_slot=game.content.find_child("PowerStoneSlot0",true,false);power_slot.suppress_next_release=true
 	var release:=InputEventMouseButton.new();release.button_index=MOUSE_BUTTON_LEFT;release.pressed=false;power_slot._gui_input(release)
 	check(not power_slot.suppress_next_release,"A release after a drag is swallowed once")
+	game.inspect_equipment("power",0,-1);await process_frame
+	var power_inventory_before:int=game.power_stone_inventory.size();game.content.find_child("RemoveFittedStone",true,false).pressed.emit();await process_frame
+	check(game.roster[0].power_slot_stones[0].is_empty() and game.power_stone_inventory.size()==power_inventory_before+1 and game.selected_inventory_item.is_empty(),"The fitted-stone remove button returns the Power Stone to inventory and clears the stale detail")
 	# Empty Move Stone slots drag between moves; fitted ones do not, and eight is the cap.
 	q.moves[0].slots=2;q.moves[0].stones=["echo"];q.moves[1].slots=1;q.moves[1].stones=[];game.show_quiblet_edit();await process_frame
 	var empty_move_slot:Control=game.content.find_child("MoveStoneSlot0_1",true,false);var target_slot:Control=game.content.find_child("MoveStoneSlot1_0",true,false)
@@ -77,6 +81,9 @@ func run()->void:
 	click(special_slot);await process_frame
 	item_name=game.content.find_child("SelectedItemName",true,false)
 	check(game.selected_cooking_item.get("kind","")=="special" and item_name!=null and item_name.text=="Bountiful Berry" and game.content.find_child("CookingItemInfo",true,false).find_children("*","Label",true,false).any(func(item):return item.text.contains("2–5")) and game.special_slots[0]=="Bountiful Berry","Clicking a placed special item shows its description")
+	var remove_cooking_item:Button=game.content.find_child("RemoveCookingItem",true,false);check(remove_cooking_item!=null,"A placed cooking item offers a visible touch-friendly remove button")
+	remove_cooking_item.pressed.emit();await process_frame
+	check(game.special_slots[0].is_empty() and int(game.special_items["Bountiful Berry"])==1 and game.selected_cooking_item.is_empty(),"The cooking remove button returns the selected item to inventory and clears its detail")
 	game.select_cooking_ingredient("Bumbleberry");await process_frame
 	check(game.selected_cooking_item.is_empty() and game.selected_cooking_ingredient=="Bumbleberry","Selecting an ingredient card replaces the spice or special item info")
 	var empty_pot:Control=game.content.find_children("*","PotDropSlot",true,false).filter(func(slot):return slot.slot_kind=="ingredient" and slot.slot_index==4)[0]

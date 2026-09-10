@@ -1,6 +1,7 @@
 extends SceneTree
 
 func _initialize() -> void:
+	assert(ProjectSettings.get_setting("display/window/stretch/aspect")=="keep" and ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch",false),"iPad builds should preserve the 16:9 layout and translate touch input into the game's pointer controls")
 	var expected_species := ["Plip","Swellit","Spriggle","Frondle","Vinee","Bloomie","Sparko","Scorchit"]
 	var expected_types := ["Water","Water","Green","Green","Green","Green","Fire","Fire"]
 	var expected_learnsets := [
@@ -65,6 +66,11 @@ func _initialize() -> void:
 	edit_team_buttons[0].pressed.emit();await process_frame
 	assert(game.screen=="all_quiblets" and game.content.find_child("QuibletGrid",true,false)!=null,"Edit Team should open the separate paged All Quiblets menu")
 	assert(game.content.find_children("TeamSlot*","",true,false).size()==5,"All Quiblets should always show five drag-and-drop team slots")
+	var membership_button:Button=game.content.find_child("TeamMembershipButton",true,false)
+	assert(membership_button!=null and membership_button.text in ["REMOVE","ADD TO TEAM"],"The selected Quiblet should have a visible touch-friendly team membership button")
+	var team_before_button:Array=game.team_indices.duplicate();membership_button.pressed.emit();await process_frame
+	assert(not game.team_indices.has(game.selected_roster),"The touch-friendly team button should remove the selected team member")
+	game.team_indices.assign(team_before_button);game.show_all_quiblets();await process_frame
 	var rebuilt_team_section:Panel=game.content.find_child("TeamSection",true,false);var rebuilt_info_section:Panel=game.content.find_child("QuibletInfo",true,false);var rebuilt_list_section:Panel=game.content.find_child("OwnedQuiblets",true,false)
 	assert(rebuilt_team_section.size==Vector2(560,624) and rebuilt_info_section.size==Vector2(460,189) and rebuilt_list_section.size==Vector2(646,417),"The roster screen should use a narrow full-height team visualizer, half-height info panel at its original width, and a wide grid beneath it")
 	var info_xp_bar:ProgressBar=rebuilt_info_section.find_child("QuibletXPBar",true,false);var info_level_label:Label=rebuilt_info_section.find_children("*","Label",true,false).filter(func(entry):return entry.text.begins_with("Lv. "))[0]
@@ -89,6 +95,8 @@ func _initialize() -> void:
 	roster_next.pressed.emit();await process_frame;assert(game.quiblet_inventory_page==1 and game.content.find_children("QuibletCard*","",true,false).size()==2,"The Quiblet next-page arrow should open the next fixed page")
 	game.set_quiblet_page(0);await process_frame
 	var team_slots:Array=game.content.find_children("TeamSlot*","",true,false);assert(team_slots[3]._can_drop_data(Vector2.ZERO,{"kind":"quiblet","roster_index":0}),"Team slots should accept dragged owned Quiblets")
+	var team_tap:=InputEventMouseButton.new();team_tap.button_index=MOUSE_BUTTON_LEFT;team_tap.pressed=false;var tapped_member:int=game.team_indices[1];team_slots[1]._gui_input(team_tap);await process_frame
+	assert(game.selected_roster==tapped_member,"Tapping an occupied team slot should select that Quiblet so its team button is available")
 	var old_first:int=game.team_indices[0];var old_third:int=game.team_indices[2];game.assign_team_slot(0,old_third);await process_frame
 	assert(game.team_indices[0]==old_third and game.team_indices[2]==old_first,"Dropping a team member onto another occupied slot should swap them")
 	game.assign_team_slot(0,old_first);await process_frame
