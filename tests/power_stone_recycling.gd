@@ -33,11 +33,16 @@ func run()->void:
 	var game=load("res://main.tscn").instantiate();root.add_child(game);await process_frame
 	var rng:=RandomNumberGenerator.new();rng.seed=90210
 	var tier_five:=stone("Attack",5,["Attack","Movement Speed"])
+	for tier in range(1,6):
+		var tier_stone:=stone("Health",tier)
+		check(is_equal_approx(game.power_stone_recycle_special_chance(tier_stone),float(tier)*.001) and is_equal_approx(game.power_stone_recycle_spice_chance(tier_stone),float(tier)*.01),"Recycle rare-reward chances should scale with tier %d"%tier)
+	var tier_one:=stone("Health",1)
+	check(game.power_stone_recycle_rewards(tier_one,.0009,rng)[0].kind=="special" and game.power_stone_recycle_rewards(tier_one,.001,rng)[0].kind=="spice" and game.power_stone_recycle_rewards(tier_one,.011,rng)[0].kind=="ingredient","Tier 1 should use 0.1% special and 1% spice boundaries")
 	var special_rewards:Array=game.power_stone_recycle_rewards(tier_five,.0049,rng)
 	var spice_rewards:Array=game.power_stone_recycle_rewards(tier_five,.005,rng)
 	var ingredient_rewards:Array=game.power_stone_recycle_rewards(tier_five,.055,rng)
-	check(special_rewards.size()==1 and special_rewards[0].kind=="special" and GameData.SPECIAL_ITEM_DROP_WEIGHTS.has(special_rewards[0].name),"The lowest 0.5% recycle roll should award exactly one existing special item")
-	check(spice_rewards.size()==1 and spice_rewards[0].kind=="spice" and spice_rewards[0].quality=="special" and GameData.SPICES.has(spice_rewards[0].name),"The next 5% should award one spice, with tier 5 producing Special quality")
+	check(special_rewards.size()==1 and special_rewards[0].kind=="special" and GameData.SPECIAL_ITEM_DROP_WEIGHTS.has(special_rewards[0].name),"Tier 5's lowest 0.5% recycle roll should award exactly one existing special item")
+	check(spice_rewards.size()==1 and spice_rewards[0].kind=="spice" and spice_rewards[0].quality=="special" and GameData.SPICES.has(spice_rewards[0].name),"Tier 5's next 5% should award one spice of Special quality")
 	check(ingredient_rewards.size()==game.power_stone_recycle_count(tier_five) and ingredient_rewards.all(func(reward):return reward.kind=="ingredient"),"All other rolls should award the stone's full ingredient payout")
 	check(game.power_stone_recycle_spice_quality(stone("Health",1))=="basic" and game.power_stone_recycle_spice_quality(stone("Health",4))=="great","Recycled spice quality should improve with Power Stone tier")
 

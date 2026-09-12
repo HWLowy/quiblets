@@ -1011,10 +1011,10 @@ func select_inventory_stone(data:Dictionary)->void:
 	selected_inventory_item=data.duplicate(true);stone_inventory_filter=stone_inventory_category(data);show_quiblet_edit()
 
 # Recycling a Power Stone usually returns one ingredient per tier plus one per
-# bonus stat plus one. Each stone independently has a 5% chance to return a
-# spice instead, or a 0.5% chance to return a special item instead.
-const POWER_STONE_RECYCLE_SPECIAL_CHANCE:=.005
-const POWER_STONE_RECYCLE_SPICE_CHANCE:=.05
+# bonus stat plus one. Rare-reward odds scale with the recycled stone's tier:
+# each tier adds 0.1% special-item chance and 1% spice chance.
+const POWER_STONE_RECYCLE_SPECIAL_CHANCE_PER_TIER:=.001
+const POWER_STONE_RECYCLE_SPICE_CHANCE_PER_TIER:=.01
 const POWER_STONE_RECYCLE_MAX_BATCH:=10
 
 func power_stone_recycle_count(stone:Dictionary)->int:
@@ -1023,14 +1023,22 @@ func power_stone_recycle_count(stone:Dictionary)->int:
 func power_stone_recycle_spice_quality(stone:Dictionary)->String:
 	return ["basic","good","good","great","special"][clampi(int(stone.get("tier",1)),1,5)-1]
 
+func power_stone_recycle_special_chance(stone:Dictionary)->float:
+	return float(clampi(int(stone.get("tier",1)),1,5))*POWER_STONE_RECYCLE_SPECIAL_CHANCE_PER_TIER
+
+func power_stone_recycle_spice_chance(stone:Dictionary)->float:
+	return float(clampi(int(stone.get("tier",1)),1,5))*POWER_STONE_RECYCLE_SPICE_CHANCE_PER_TIER
+
 # Returns one stone's complete payout. outcome_roll_override is kept optional so
 # automated checks can verify all three reward paths without depending on luck.
 func power_stone_recycle_rewards(stone_value:Dictionary,outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->Array:
 	var stone:=GameData.normalize_power_stone(stone_value)
 	var outcome_roll:=outcome_roll_override if outcome_roll_override>=0.0 else (rng.randf() if rng!=null else randf())
-	if outcome_roll<POWER_STONE_RECYCLE_SPECIAL_CHANCE:
+	var special_chance:=power_stone_recycle_special_chance(stone)
+	var spice_chance:=power_stone_recycle_spice_chance(stone)
+	if outcome_roll<special_chance:
 		return [{"kind":"special","name":GameData.choose_special_item(rng),"amount":1}]
-	if outcome_roll<POWER_STONE_RECYCLE_SPECIAL_CHANCE+POWER_STONE_RECYCLE_SPICE_CHANCE:
+	if outcome_roll<special_chance+spice_chance:
 		var spice_names:=GameData.SPICES.keys();var spice_name:String=str(spice_names[rng.randi_range(0,spice_names.size()-1) if rng!=null else randi_range(0,spice_names.size()-1)])
 		return [{"kind":"spice","name":spice_name,"quality":power_stone_recycle_spice_quality(stone),"amount":1}]
 	var power_range:Vector2i=GameData.POWER_STONE_RANGES[int(stone.tier)-1];var level:=maxi(1,int((power_range.x+power_range.y)/2)/6)
@@ -1089,7 +1097,7 @@ func request_recycle_power_stone(inventory_index:int)->void:
 	var lines:Array[String]=[]
 	for bonus in stone.bonuses:lines.append(GameData.bonus_description(bonus))
 	label(menu,"; ".join(lines) if not lines.is_empty() else "No bonus stats.",Vector2(118,102),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,380)
-	label(menu,"Usually returns %d ingredients. It can instead give a spice (5%%) or special item (0.5%%)."%power_stone_recycle_count(stone),Vector2(42,153),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,456)
+	label(menu,"Usually returns %d ingredients. It can instead give a spice (%.1f%%) or special item (%.1f%%)."%[power_stone_recycle_count(stone),power_stone_recycle_spice_chance(stone)*100.0,power_stone_recycle_special_chance(stone)*100.0],Vector2(42,153),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,456)
 	var cancel:=add_button(menu,"KEEP IT",Vector2(45,211),Vector2(205,54),shade.queue_free,"plain");cancel.name="CancelRecycleStone"
 	var confirm:=add_button(menu,"RECYCLE",Vector2(270,211),Vector2(225,54),func():shade.queue_free();recycle_power_stone(inventory_index),"coral");confirm.name="ConfirmRecycleStone"
 
@@ -1154,7 +1162,7 @@ func show_stone_recycler()->void:
 
 func build_stone_recycler_detail(parent:Control)->void:
 	label(parent,"SELECTED  %d / %d"%[stone_recycler_selected.size(),POWER_STONE_RECYCLE_MAX_BATCH],Vector2(22,16),20,GameData.COLORS.ink,true)
-	label(parent,"Each stone rolls separately: 0.5% special item • 5% spice • otherwise ingredients. Higher-tier stones produce better spice and ingredient rewards.",Vector2(22,48),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,571)
+	label(parent,"Each stone rolls separately. T1: 0.1% special / 1% spice; each higher tier adds 0.1% / 1%. Otherwise it gives ingredients.",Vector2(22,48),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,571)
 	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecyclerDetailScroll");scroll.position=Vector2(22,112);scroll.size=Vector2(571,354);parent.add_child(scroll)
 	var rows:=VBoxContainer.new();rows.name="RecyclerRows";rows.custom_minimum_size=Vector2(571,0);rows.add_theme_constant_override("separation",6);scroll.add_child(rows)
 	var stones:=recycler_selected_stones()
@@ -1184,7 +1192,7 @@ func request_recycle_selected_power_stones()->void:
 	var menu:=panel(Rect2(350,190,580,330),Color("#fffdf7"),20);shade.add_child(menu)
 	label(menu,"RECYCLE %d POWER STONE%s?"%[stones.size(),"" if stones.size()==1 else "S"],Vector2(30,27),25,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,520)
 	label(menu,"This permanently destroys every selected stone.",Vector2(42,79),15,GameData.COLORS.coral,true,HORIZONTAL_ALIGNMENT_CENTER,496)
-	label(menu,"Usually returns %d ingredients total. Each stone can instead give a spice (5%%) or special item (0.5%%)."%recycler_normal_ingredient_total(),Vector2(52,122),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,476)
+	label(menu,"Usually returns %d ingredients total. Each stone's rare-reward odds rise with its tier (T1: 1%% spice / 0.1%% special; T5: 5%% / 0.5%%)."%recycler_normal_ingredient_total(),Vector2(52,122),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,476)
 	var cancel:=add_button(menu,"KEEP THEM",Vector2(45,246),Vector2(225,54),shade.queue_free,"plain");cancel.name="CancelRecycleBatch"
 	var confirm:=add_button(menu,"RECYCLE ALL",Vector2(290,246),Vector2(245,54),func():shade.queue_free();recycle_selected_power_stones(),"coral");confirm.name="ConfirmRecycleBatch"
 

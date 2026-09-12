@@ -908,10 +908,10 @@ static func reward_sparkle_level(reward:Dictionary)->int:
 const MOVE_TRAINING_BASE_CHANCE:=5.0
 const MOVE_TRAINING_MAX_CHANCE:=95.0
 const MOVE_TRAINING_HELPER_CHANCE:={"species":25.0,"family":20.0,"type":12.0,"none":5.0}
-const EXP_TRAINING_SHARE:=.30
+const EXP_TRAINING_SHARE:=.15
 const EXP_TRAINING_HELPER_MULTIPLIER:={"species":1.75,"family":1.5,"type":1.2,"none":1.0}
 # Preservation chance per added ingredient: rarity tier × compatibility with the helper.
-const PRESERVATION_CHANCE:={1:{"poor":2.5,"neutral":5.0,"match":10.0},2:{"poor":5.0,"neutral":10.0,"match":20.0},3:{"poor":7.5,"neutral":15.0,"match":30.0},4:{"poor":10.0,"neutral":20.0,"match":40.0}}
+const PRESERVATION_CHANCE:={1:{"poor":1.25,"neutral":2.5,"match":5.0},2:{"poor":2.5,"neutral":5.0,"match":10.0},3:{"poor":3.75,"neutral":7.5,"match":15.0},4:{"poor":5.0,"neutral":10.0,"match":20.0}}
 # Later learnset entries are rarer: each step down the learnset multiplies the pick weight by this.
 const MOVE_RARITY_DECAY:=.7
 # Per element: named excellent and opposing ingredients, then tag-based poor and
