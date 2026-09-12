@@ -2,6 +2,7 @@ extends SceneTree
 
 func _initialize() -> void:
 	assert(ProjectSettings.get_setting("display/window/stretch/aspect")=="keep" and ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch",false),"iPad builds should preserve the 16:9 layout and translate touch input into the game's pointer controls")
+	assert(ProjectSettings.get_setting("application/run/main_scene")=="res://main.tscn","Exports must start the full Quiblets game rather than a temporary preview or test scene")
 	var expected_species := ["Plip","Swellit","Spriggle","Frondle","Vinee","Bloomie","Sparko","Scorchit","Fistor","Carapuff","Burlow","Stackle","Shelter","Mimbit","Pidler","Gloopit","Blubber","Cysicle","Gagglet","Gaggle"]
 	var expected_types := ["Water","Water","Green","Green","Green","Green","Fire","Fire","Psychic","Psychic","Earth","Earth","Normal","Normal","Normal","Poison","Air","Ice","Air","Air"]
 	var expected_learnsets := [
