@@ -36,41 +36,6 @@ func sphere(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	mesh.rings = 6
 	return mesh_part(mesh, pos, mat, size)
 
-func water_drop_body(mat: Material) -> MeshInstance3D:
-	# Keep the familiar rounded toy body, but taper the upper third into a
-	# small water-drop point for the Plip family.
-	var profile := PackedVector2Array([
-		Vector2(0.00, 0.05),
-		Vector2(0.12, 0.34),
-		Vector2(0.34, 0.56),
-		Vector2(0.66, 0.63),
-		Vector2(0.91, 0.58),
-		Vector2(1.10, 0.47),
-		Vector2(1.28, 0.29),
-		Vector2(1.47, 0.01),
-	])
-	var radial_segments := 12
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for ring in profile.size() - 1:
-		var lower := profile[ring]
-		var upper := profile[ring + 1]
-		for segment in radial_segments:
-			var angle_a := TAU * float(segment) / float(radial_segments)
-			var angle_b := TAU * float(segment + 1) / float(radial_segments)
-			var lower_a := Vector3(cos(angle_a) * lower.y, lower.x, sin(angle_a) * lower.y * 0.86)
-			var upper_a := Vector3(cos(angle_a) * upper.y, upper.x, sin(angle_a) * upper.y * 0.86)
-			var upper_b := Vector3(cos(angle_b) * upper.y, upper.x, sin(angle_b) * upper.y * 0.86)
-			var lower_b := Vector3(cos(angle_b) * lower.y, lower.x, sin(angle_b) * lower.y * 0.86)
-			surface.add_vertex(lower_a)
-			surface.add_vertex(upper_a)
-			surface.add_vertex(upper_b)
-			surface.add_vertex(lower_a)
-			surface.add_vertex(upper_b)
-			surface.add_vertex(lower_b)
-	surface.generate_normals()
-	return mesh_part(surface.commit(), Vector3.ZERO, mat)
-
 func box(pos: Vector3, size: Vector3, mat: Material, rotation := Vector3.ZERO) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -88,16 +53,27 @@ func build_model() -> void:
 		build_imported_model(str(s.model));return
 	var dark := material(GameData.COLORS.ink, 0.55)
 	var white := material(Color.WHITE, 0.45)
-	# Chunky low-poly body. Plip and Swellit share a subtly pointed,
-	# water-drop silhouette while retaining the same width and depth.
-	if str(s.get("family", "")) == "plip":
-		water_drop_body(body_material)
-	else:
+	# The family-owned visual layer can replace the standard body while the
+	# base builder remains stable for upstream gameplay and content updates.
+	if not QuibletVisualOverrides.build_custom_body(self, s):
 		sphere(Vector3(0,0.68,0),Vector3(1.22,1.16,1.08),body_material)
 	sphere(Vector3(0,0.38,0.08),Vector3(.76,.62,.82),material(s.color.lightened(.09)))
 	# Feet establish a grounded, toy-like silhouette.
 	sphere(Vector3(-.34,.08,.14),Vector3(.4,.2,.5),accent_material)
 	sphere(Vector3(.34,.08,.14),Vector3(.4,.2,.5),accent_material)
+	var custom_shape := QuibletVisualOverrides.apply_species_features(self, s)
+	if not custom_shape:
+		build_standard_shape(s)
+	# Face points toward +Z.
+	for x in [-.27,.27]:
+		sphere(Vector3(x,.84,.51),Vector3(.15,.19,.1),dark)
+		sphere(Vector3(x-.025,.89,.565),Vector3(.045,.055,.025),white)
+	# Tiny nose and blush cubes.
+	box(Vector3(0,.65,.56),Vector3(.11,.07,.06),dark)
+	sphere(Vector3(-.48,.64,.5),Vector3(.13,.08,.05),material(Color(s.accent,.8)))
+	sphere(Vector3(.48,.64,.5),Vector3(.13,.08,.05),material(Color(s.accent,.8)))
+
+func build_standard_shape(s: Dictionary) -> void:
 	match s.shape:
 		"ears":
 			box(Vector3(-.38,1.35,0),Vector3(.38,.8,.34),body_material,Vector3(0,0,-.28))
@@ -155,15 +131,6 @@ func build_model() -> void:
 			var moon := mesh_part(torus,Vector3(.18,1.35,0),accent_material);moon.rotation.x=PI/2
 		"shell":
 			var shell:=sphere(Vector3(-.2,.78,-.36),Vector3(.95,.95,.35),accent_material);shell.rotation.z=.2
-	# Face points toward +Z.
-	for x in [-.27,.27]:
-		sphere(Vector3(x,.84,.51),Vector3(.15,.19,.1),dark)
-		sphere(Vector3(x-.025,.89,.565),Vector3(.045,.055,.025),white)
-	# Tiny nose and blush cubes.
-	box(Vector3(0,.65,.56),Vector3(.11,.07,.06),dark)
-	sphere(Vector3(-.48,.64,.5),Vector3(.13,.08,.05),material(Color(s.accent,.8)))
-	sphere(Vector3(.48,.64,.5),Vector3(.13,.08,.05),material(Color(s.accent,.8)))
-
 # Imported glTF models are authored facing a different way than the procedural
 # bodies (+Z forward); rotate them so they line up with everything else.
 const IMPORTED_MODEL_YAW := PI / 2.0  # counter-clockwise 90° (viewed from above)
