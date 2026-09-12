@@ -211,20 +211,28 @@ func _initialize() -> void:
 	move_overlay.find_child("BackButton",true,false).pressed.emit();await process_frame
 	assert(game.move_stone_display_texture("link_from:Water Burst").resource_path=="res://textures/MoveStones/LinkStoneOcupied.png" and game.move_stone_display_texture("link:Bubble Shot").resource_path==GameData.stone_info("link").texture,"Only the destination side of a linked move should use the occupied Link Stone texture")
 	assert(game.roster[game.selected_roster].power_slot_types.all(func(value):return value in ["Health","Attack","Flex"]),"Every power slot has a fixed Health, Attack, or Flex type")
+	var inventory_tabs:Array=game.content.find_children("StoneInventoryTab_*","Button",true,false)
+	assert(inventory_tabs.size()==3 and game.content.find_child("StoneInventoryTab_health",true,false)!=null and game.content.find_child("StoneInventoryTab_attack",true,false)!=null and game.content.find_child("StoneInventoryTab_move",true,false)!=null,"The equipment inventory should have Health, Attack, and Move Stone tabs")
 	var inventory_cards:Array=game.content.find_children("StoneInventoryCard*","",true,false)
-	assert(inventory_cards.size()==4,"The equipment list should include owned power and Move Stones")
+	assert(inventory_cards.size()==2 and inventory_cards.all(func(card):return card.item_data.stone_type=="Health"),"The default Health tab should show only Health Power Stones")
 	for inventory_card in inventory_cards:
 		var stone_preview:Control=inventory_card.create_stone_drag_preview()
-		assert(not stone_preview is Panel and stone_preview.find_children("*","Panel",true,false).is_empty() and stone_preview.modulate.a==1.0,"Both Power and Move Stone inventory drags must show only opaque stone art without a white card behind it")
-		if inventory_card.item_data.kind=="move_stone":
-			var drag_icon:TextureRect=stone_preview.get_child(0)
-			assert(drag_icon.texture.resource_path==GameData.stone_info(str(inventory_card.item_data.effect)).texture and drag_icon.position+drag_icon.size*.5==Vector2.ZERO,"Inventory Move Stone drag previews must center the stone texture on the cursor")
-		else:
-			var power_drag_icon:Control=stone_preview.get_child(0)
-			assert(power_drag_icon.position+power_drag_icon.size*.5==Vector2.ZERO and power_drag_icon.stone.power==inventory_card.item_data.power,"Inventory Power Stone drag previews must center the assembled stone on the cursor")
+		assert(not stone_preview is Panel and stone_preview.find_children("*","Panel",true,false).is_empty() and stone_preview.modulate.a==1.0,"Power Stone inventory drags must show only opaque stone art without a white card behind it")
+		var power_drag_icon:Control=stone_preview.get_child(0)
+		assert(power_drag_icon.position+power_drag_icon.size*.5==Vector2.ZERO and power_drag_icon.stone.power==inventory_card.item_data.power,"Inventory Power Stone drag previews must center the assembled stone on the cursor")
 		stone_preview.free()
 	assert(inventory_cards.all(func(card):return card.size==game.stone_card_size() and card.size.y==74 and card.size.x>74 and card.find_children("*","Label",true,false).is_empty()) and game.content.find_child("StoneIconGrid",true,false).size.x==game.STONE_GRID_WIDTH and game.stone_card_size().x*4+30<=game.STONE_GRID_WIDTH and game.content.find_child("StoneInventory",true,false).find_children("*","ScrollContainer",true,false).is_empty(),"The stone inventory should contain only fixed icon squares and no scrolling list")
-	assert(inventory_cards[0].item_data.stone_type=="Health" and inventory_cards[0].item_data.power==50 and inventory_cards[1].item_data.power==20 and inventory_cards[2].item_data.stone_type=="Attack","Power Stones should sort Health first, Attack second, and highest value first within each type")
+	assert(inventory_cards[0].item_data.power==50 and inventory_cards[1].item_data.power==20,"Health Power Stones should sort highest value first")
+	game.content.find_child("StoneInventoryTab_attack",true,false).pressed.emit();await process_frame
+	var attack_inventory_cards:Array=game.content.find_children("StoneInventoryCard*","",true,false)
+	assert(attack_inventory_cards.size()==1 and attack_inventory_cards[0].item_data.stone_type=="Attack" and attack_inventory_cards[0].item_data.power==35,"The Attack tab should show only Attack Power Stones")
+	game.content.find_child("StoneInventoryTab_move",true,false).pressed.emit();await process_frame
+	var move_inventory_cards:Array=game.content.find_children("StoneInventoryCard*","",true,false)
+	assert(move_inventory_cards.size()==1 and move_inventory_cards[0].item_data.kind=="move_stone","The Move tab should show only Move Stones")
+	var move_inventory_preview:Control=move_inventory_cards[0].create_stone_drag_preview();var move_inventory_icon:TextureRect=move_inventory_preview.get_child(0)
+	assert(move_inventory_icon.texture.resource_path==GameData.stone_info(str(move_inventory_cards[0].item_data.effect)).texture and move_inventory_icon.position+move_inventory_icon.size*.5==Vector2.ZERO,"Inventory Move Stone drag previews must center the stone texture on the cursor")
+	move_inventory_preview.free()
+	game.content.find_child("StoneInventoryTab_health",true,false).pressed.emit();await process_frame;inventory_cards=game.content.find_children("StoneInventoryCard*","",true,false)
 	var health_slot:int=GameData.first_power_slot_accepting(game.roster[game.selected_roster],"Health");var health_slot_type:String=game.roster[game.selected_roster].power_slot_types[health_slot]
 	var power_count_before:int=game.power_stone_inventory.size();game.equip_stone_from_inventory("power",health_slot,-1,inventory_cards[0].item_data);await process_frame
 	assert(game.roster[game.selected_roster].power_slot_types[health_slot]==health_slot_type and game.roster[game.selected_roster].power_slot_stones[health_slot].power==50 and game.power_stone_inventory.size()==power_count_before-1,"Dropping into an unlocked compatible power slot should equip the stone without changing the slot's fixed type")
@@ -245,10 +253,10 @@ func _initialize() -> void:
 	assert(equipped_drag_icon.position+equipped_drag_icon.size*.5==Vector2.ZERO,"Equipped Move Stone drag previews must also center the stone on the cursor")
 	move_stone_drag_preview.free()
 	game.finish_equipment_drag();await process_frame
-	game.move_stone_inventory["echo"]=20;game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
+	game.move_stone_inventory["echo"]=20;game.stone_inventory_filter="move";game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
 	var stone_panel:Panel=game.content.find_child("StoneInventory",true,false);var stone_dots:Label=stone_panel.find_child("PageDots",true,false);var stone_next:Button=stone_panel.find_child("NextPage",true,false)
 	assert(game.content.find_children("StoneInventoryCard*","",true,false).size()==16 and stone_dots.text.contains("○") and not stone_next.disabled,"A full stone page should show sixteen icon squares and multiple page dots")
-	stone_next.pressed.emit();await process_frame;assert(game.stone_inventory_page==1 and game.content.find_children("StoneInventoryCard*","",true,false).size()==7,"The stone next-page arrow should open the remaining icon squares")
+	stone_next.pressed.emit();await process_frame;assert(game.stone_inventory_page==1 and game.content.find_children("StoneInventoryCard*","",true,false).size()==4,"The Move Stone next-page arrow should open the remaining icon squares")
 	game.move_stone_inventory["echo"]=1;game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
 	var sharing_info:Dictionary=GameData.stone_info("sharing");game.select_inventory_stone({"kind":"move_stone","effect":"sharing","display_name":sharing_info.name});await process_frame
 	var stone_detail_title:Label=game.content.find_child("StoneDetailTitle",true,false);var stone_detail_description:RichTextLabel=game.content.find_child("StoneDetailDescription",true,false)

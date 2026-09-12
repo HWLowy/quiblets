@@ -103,6 +103,7 @@ var quiblet_inventory_page:=0
 var cooking_recipe_index:=0
 var lid_drop_pending:=false
 var stone_inventory_page:=0
+var stone_inventory_filter:="health"
 var stone_recycler_selected:Array[int]=[]
 var last_recycle_rewards:Array[Dictionary]=[]
 var selection_pulse_roster:=-1
@@ -769,7 +770,7 @@ func show_quiblet_edit()->void:
 	for slot_index in 16:build_power_slot(power_grid,q,slot_index,Vector2((slot_index%4)*66,(slot_index/4)*66))
 	var right:=panel(Rect2(868,68,384,624),Color("#f6f8f6"),18);content.add_child(right);right.name="StoneInventory"
 	build_stone_detail(right)
-	var separator:=HSeparator.new();separator.position=Vector2(16,204);separator.size=Vector2(352,2);right.add_child(separator)
+	var separator:=HSeparator.new();separator.position=Vector2(16,200);separator.size=Vector2(352,2);right.add_child(separator)
 	build_equipment_inventory(right)
 
 func build_edit_move_cluster(parent:Control,entry:Dictionary,move_index:int,pos:Vector2)->void:
@@ -938,22 +939,39 @@ const STONE_GRID_COLUMNS:=4
 const STONE_GRID_GAP:=10
 const STONE_GRID_WIDTH:=352
 const STONE_CARD_HEIGHT:=74
+const STONE_INVENTORY_FILTERS:={"health":"HEALTH","attack":"ATTACK","move":"MOVE"}
 
 # Inventory cards keep their height and stretch to fill the panel's width.
 func stone_card_size()->Vector2:
 	return Vector2(floorf((STONE_GRID_WIDTH-(STONE_GRID_COLUMNS-1)*STONE_GRID_GAP)/float(STONE_GRID_COLUMNS)),STONE_CARD_HEIGHT)
 
+func stone_inventory_category(data:Dictionary)->String:
+	if str(data.get("kind",""))=="move_stone":return "move"
+	return str(data.get("stone_type",data.get("type","Health"))).to_lower()
+
+func stone_inventory_entries(category:String)->Array:
+	var entries:Array=[]
+	if category in ["health","attack"]:
+		entries=all_power_stone_entries().filter(func(entry):return stone_inventory_category(entry)==category)
+	elif category=="move":
+		for stone in GameData.MOVE_STONES:
+			var count:=int(move_stone_inventory.get(stone.effect,0))
+			for copy_index in count:entries.append({"kind":"move_stone","effect":str(stone.effect),"count":1,"copy_index":copy_index,"display_name":str(stone.name)})
+	return entries
+
 func build_equipment_inventory(parent:Control)->void:
-	var entries:Array=all_power_stone_entries()
-	for stone in GameData.MOVE_STONES:
-		var count:=int(move_stone_inventory.get(stone.effect,0))
-		for copy_index in count:entries.append({"kind":"move_stone","effect":str(stone.effect),"count":1,"copy_index":copy_index,"display_name":str(stone.name)})
+	if not STONE_INVENTORY_FILTERS.has(stone_inventory_filter):stone_inventory_filter="health"
+	var tab_x:=16
+	for category in STONE_INVENTORY_FILTERS:
+		var kind:="blue" if category=="health" else ("coral" if category=="attack" else "gold")
+		var tab:=add_button(parent,STONE_INVENTORY_FILTERS[category],Vector2(tab_x,210),Vector2(112,34),func(chosen=category):set_stone_inventory_filter(chosen),kind if category==stone_inventory_filter else "plain");tab.name="StoneInventoryTab_%s"%category;tab_x+=120
+	var entries:=stone_inventory_entries(stone_inventory_filter)
 	var page_count:=maxi(1,ceili(entries.size()/16.0));stone_inventory_page=clampi(stone_inventory_page,0,page_count-1)
-	var grid:=GridContainer.new();grid.name="StoneIconGrid";grid.position=Vector2(16,222);grid.size=Vector2(STONE_GRID_WIDTH,326);grid.columns=STONE_GRID_COLUMNS;grid.add_theme_constant_override("h_separation",STONE_GRID_GAP);grid.add_theme_constant_override("v_separation",STONE_GRID_GAP);parent.add_child(grid)
+	var grid:=GridContainer.new();grid.name="StoneIconGrid";grid.position=Vector2(16,250);grid.size=Vector2(STONE_GRID_WIDTH,326);grid.columns=STONE_GRID_COLUMNS;grid.add_theme_constant_override("h_separation",STONE_GRID_GAP);grid.add_theme_constant_override("v_separation",STONE_GRID_GAP);parent.add_child(grid)
 	var page_start:=stone_inventory_page*16;var page_end:=mini(entries.size(),page_start+16)
 	for entry_index in range(page_start,page_end):add_stone_inventory_card(grid,entries[entry_index])
-	if entries.is_empty():label(grid,"No stones owned",Vector2(0,20),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,STONE_GRID_WIDTH)
-	add_page_navigation(parent,stone_inventory_page,page_count,Vector2(14,557),356,set_stone_page)
+	if entries.is_empty():label(grid,"No %s Stones owned"%STONE_INVENTORY_FILTERS[stone_inventory_filter].capitalize(),Vector2(0,20),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,STONE_GRID_WIDTH)
+	add_page_navigation(parent,stone_inventory_page,page_count,Vector2(14,582),356,set_stone_page)
 
 func add_stone_inventory_card(parent:Control,data:Dictionary)->void:
 	var card_size:=stone_card_size();var fitted:bool=data.get("fitted",false)
@@ -973,6 +991,12 @@ func decorate_fitted_stone_card(card:Control,icon:Control,data:Dictionary)->void
 func set_stone_page(page:int)->void:
 	stone_inventory_page=page;show_quiblet_edit()
 
+func set_stone_inventory_filter(category:String)->void:
+	if not STONE_INVENTORY_FILTERS.has(category):return
+	stone_inventory_filter=category;stone_inventory_page=0
+	if not selected_inventory_item.is_empty() and stone_inventory_category(selected_inventory_item)!=category:selected_inventory_item.clear()
+	show_quiblet_edit()
+
 func add_page_navigation(parent:Control,current_page:int,page_count:int,pos:Vector2,navigation_width:float,callback:Callable)->void:
 	var navigation:=Control.new();navigation.name="PageNavigation";navigation.position=pos;navigation.size=Vector2(navigation_width,38);parent.add_child(navigation)
 	var back:=add_button(navigation,"‹",Vector2(0,0),Vector2(44,36),func():callback.call(current_page-1),"plain");back.name="PreviousPage";back.disabled=current_page<=0
@@ -982,7 +1006,7 @@ func add_page_navigation(parent:Control,current_page:int,page_count:int,pos:Vect
 	var dots_label:=label(navigation,dots,Vector2(48,8),14,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,int(navigation_width-96));dots_label.name="PageDots"
 
 func select_inventory_stone(data:Dictionary)->void:
-	selected_inventory_item=data.duplicate(true);show_quiblet_edit()
+	selected_inventory_item=data.duplicate(true);stone_inventory_filter=stone_inventory_category(data);show_quiblet_edit()
 
 # Recycling a Power Stone usually returns one ingredient per tier plus one per
 # bonus stat plus one. Each stone independently has a 5% chance to return a
