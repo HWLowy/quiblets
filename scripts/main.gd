@@ -15,6 +15,7 @@ const SPICE_MIX_SLOT_SCRIPT:=preload("res://scripts/spice_mix_slot.gd")
 const SPICE_MIX_MAX:=5
 const UNLOCK_RING_SCRIPT:=preload("res://scripts/unlock_progress_ring.gd")
 const REWARD_SPARKLES_SCRIPT:=preload("res://scripts/reward_sparkles.gd")
+const TOUCH_SCROLL_SCRIPT:=preload("res://scripts/touch_scroll_container.gd")
 
 var roster: Array = []
 var team_indices: Array[int] = [0]
@@ -119,6 +120,9 @@ var training_foods:Array[String]=["",""]
 var training_move:=-1
 var training_rng:RandomNumberGenerator
 var last_training_result:Dictionary={}
+
+func touch_scroll(axis:int,name_hint:String)->ScrollContainer:
+	return TOUCH_SCROLL_SCRIPT.new().configure(axis,name_hint)
 
 const TEAM_SLOT_NAMES := ["Red","Green","Blue","Cyan","Yellow"]
 const TEAM_SLOT_COLORS := [Color("#e96257"),Color("#67a65a"),Color("#5279d8"),Color("#55c7cf"),Color("#e7b83f")]
@@ -1277,7 +1281,7 @@ func show_resources() -> void:
 	label(left,"INGREDIENTS",Vector2(22,19),18,GameData.COLORS.ink,true)
 	label(left,"Tap Cook to use these in a deterministic recipe.",Vector2(22,48),14,GameData.COLORS.muted)
 	var keys:=GameData.INGREDIENTS.keys()
-	var ingredient_scroll:=ScrollContainer.new();ingredient_scroll.position=Vector2(16,78);ingredient_scroll.size=Vector2(552,398);left.add_child(ingredient_scroll)
+	var ingredient_scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"ResourceIngredientScroll");ingredient_scroll.position=Vector2(16,78);ingredient_scroll.size=Vector2(552,398);left.add_child(ingredient_scroll)
 	var ingredient_grid:=Control.new();ingredient_grid.custom_minimum_size=Vector2(532,ceili(keys.size()/2.0)*100);ingredient_scroll.add_child(ingredient_grid)
 	for i in keys.size():
 		var name:String=keys[i]; var info:Dictionary=GameData.INGREDIENTS[name]; var x:=(i%2)*266; var y:=(i/2)*100
@@ -1297,7 +1301,7 @@ func show_resources() -> void:
 	var right:=panel(Rect2(635,112,615,565),Color("#f7f3ff"),18); content.add_child(right)
 	label(right,"SPECIAL ITEMS",Vector2(22,19),18,GameData.COLORS.ink,true)
 	var desc:Dictionary=SPECIAL_ITEM_DESCRIPTIONS
-	var scroll:=ScrollContainer.new(); scroll.position=Vector2(16,58); scroll.size=Vector2(582,436); right.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"SpecialItemScroll"); scroll.position=Vector2(16,58); scroll.size=Vector2(582,436); right.add_child(scroll)
 	var workshop_button:=add_button(right,"STONE WORKSHOP  •  combine, revitalize, convert, reforge",Vector2(16,504),Vector2(582,44),func():show_stone_workshop(),"gold");workshop_button.name="OpenStoneWorkshop"
 	var vb:=VBoxContainer.new(); vb.custom_minimum_size=Vector2(560,0); vb.add_theme_constant_override("separation",7); scroll.add_child(vb)
 	# Leftover jars are stored per recipe; they live here beside the special items
@@ -1481,7 +1485,7 @@ func show_cooking() -> void:
 	for i in keys.size():
 		var name:String=keys[i];var card:=IngredientDragCard.new();card.custom_minimum_size=Vector2(67,82);ingredient_grid.add_child(card);card.setup(self,name,unlocked_ingredients.has(name))
 	var separator_one:=ColorRect.new();separator_one.color=Color("#c9cdd2");separator_one.position=Vector2(15,188);separator_one.size=Vector2(596,2);separator_one.mouse_filter=Control.MOUSE_FILTER_IGNORE;resources_panel.add_child(separator_one)
-	var spice_scroll:=ScrollContainer.new();spice_scroll.position=Vector2(12,198);spice_scroll.size=Vector2(602,60);resources_panel.add_child(spice_scroll)
+	var spice_scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_HORIZONTAL,"CookingSpiceScroll");spice_scroll.position=Vector2(12,198);spice_scroll.size=Vector2(602,60);resources_panel.add_child(spice_scroll)
 	var spice_row:=HBoxContainer.new();spice_row.add_theme_constant_override("separation",7);spice_scroll.add_child(spice_row)
 	for spice_name in GameData.SPICES:
 		for spice_quality in GameData.SPICE_QUALITIES:
@@ -1857,7 +1861,7 @@ func dismiss_cooked_result()->void:
 func show_recipes()->void:
 	screen="recipes";clear_content();make_topbar("RECIPE JOURNAL","Discovered recipes explain their ingredient logic and can be prepared again quickly.",true)
 	var journal:=panel(Rect2(80,120,1120,540),Color("#fffaf0"),20);content.add_child(journal)
-	var recipe_scroll:=ScrollContainer.new();recipe_scroll.position=Vector2(14,14);recipe_scroll.size=Vector2(1092,512);journal.add_child(recipe_scroll)
+	var recipe_scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecipeJournalScroll");recipe_scroll.position=Vector2(14,14);recipe_scroll.size=Vector2(1092,512);journal.add_child(recipe_scroll)
 	var recipe_grid:=Control.new();recipe_grid.custom_minimum_size=Vector2(1070,ceili(GameData.RECIPES.size()/2.0)*164);recipe_scroll.add_child(recipe_grid)
 	for i in GameData.RECIPES.size():
 		var recipe:Dictionary=GameData.RECIPES[i];var known:bool=known_recipes.has(recipe.name) or recipe.name=="Plain Stew";var x:=(i%2)*536;var y:=(i/2)*164
@@ -2341,7 +2345,7 @@ func show_item_use(item:String)->void:
 	label(left,"%s  × %d"%[item,int(special_items.get(item,0))],Vector2(22,16),20,GameData.COLORS.ink,true)
 	label(left,str(SPECIAL_ITEM_DESCRIPTIONS.get(item,"")),Vector2(22,46),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
 	label(left,"Choose a Quiblet:",Vector2(22,74),13,GameData.COLORS.berry,true)
-	var scroll:=ScrollContainer.new();scroll.position=Vector2(16,100);scroll.size=Vector2(552,508);left.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"ItemTargetScroll");scroll.position=Vector2(16,100);scroll.size=Vector2(552,508);left.add_child(scroll)
 	var list:=VBoxContainer.new();list.name="ItemTargetList";list.custom_minimum_size=Vector2(530,0);list.add_theme_constant_override("separation",6);scroll.add_child(list)
 	for roster_index in roster.size():
 		var q:Dictionary=roster[roster_index];var chosen:bool=roster_index==int(item_use.roster_index)
@@ -2371,7 +2375,7 @@ func build_item_use_detail(parent:Control)->void:
 	var q:=item_use_target()
 	if q.is_empty():label(parent,"Pick a Quiblet on the left.",Vector2(22,22),16,GameData.COLORS.muted);add_item_use_footer(parent);return
 	label(parent,"%s   Lv. %d"%[GameData.display_name(q),int(q.level)],Vector2(22,16),20,GameData.COLORS.ink,true)
-	var scroll:=ScrollContainer.new();scroll.position=Vector2(22,52);scroll.size=Vector2(571,400);parent.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"ItemChoiceScroll");scroll.position=Vector2(22,52);scroll.size=Vector2(571,400);parent.add_child(scroll)
 	var choices:=VBoxContainer.new();choices.name="ItemChoiceList";choices.custom_minimum_size=Vector2(571,0);choices.add_theme_constant_override("separation",6);scroll.add_child(choices)
 	match item:
 		"Memory Fruit":
@@ -2590,7 +2594,7 @@ func show_stone_workshop()->void:
 		var tab:=add_button(left,STONE_WORKSHOP_MODES[key].title,Vector2(x,46),Vector2(132,34),func(pick=key):set_stone_workshop_mode(pick),"leaf" if key==mode else "plain");tab.name="WorkshopMode_%s"%key;x+=137
 	label(left,STONE_WORKSHOP_MODES[mode].blurb,Vector2(22,86),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
 	label(left,workshop_hint(),Vector2(22,164),13,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_LEFT,540)
-	var scroll:=ScrollContainer.new();scroll.position=Vector2(16,200);scroll.size=Vector2(552,406);left.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"WorkshopStoneScroll");scroll.position=Vector2(16,200);scroll.size=Vector2(552,406);left.add_child(scroll)
 	var grid:=GridContainer.new();grid.name="WorkshopGrid";grid.columns=6;grid.add_theme_constant_override("h_separation",10);grid.add_theme_constant_override("v_separation",10);scroll.add_child(grid)
 	var entries:Array=all_power_stone_entries()
 	for data in entries:
@@ -2626,7 +2630,7 @@ func add_workshop_stone_row(parent:Node,stone:Dictionary,caption:String,name_hin
 func build_stone_workshop_detail(parent:Control)->void:
 	var mode:String=str(stone_workshop.mode);var stones:=workshop_selected_stones()
 	label(parent,STONE_WORKSHOP_MODES[mode].title,Vector2(22,16),20,GameData.COLORS.ink,true)
-	var scroll:=ScrollContainer.new();scroll.position=Vector2(22,52);scroll.size=Vector2(571,404);parent.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"WorkshopDetailScroll");scroll.position=Vector2(22,52);scroll.size=Vector2(571,404);parent.add_child(scroll)
 	var rows:=VBoxContainer.new();rows.name="WorkshopRows";rows.custom_minimum_size=Vector2(571,0);rows.add_theme_constant_override("separation",6);scroll.add_child(rows)
 	if stones.is_empty():label(rows,"Pick a Power Stone on the left.",Vector2.ZERO,15,GameData.COLORS.muted)
 	for stone in stones:add_workshop_stone_row(rows,stone,"INPUT" if mode=="combine" else "STONE","WorkshopInput")
@@ -2785,7 +2789,7 @@ func build_pause_reward_column(parent:Control,title:String,pos:Vector2,kind:Stri
 	label(column,title,Vector2(14,10),14,GameData.COLORS.ink,true)
 	var entries:=live_haul_entries().filter(func(entry):return entry.kind==kind)
 	if entries.is_empty():label(column,"Nothing yet.",Vector2(14,44),12,GameData.COLORS.muted);return
-	var scroll:=ScrollContainer.new();scroll.position=Vector2(8,36);scroll.size=Vector2(274,328);column.add_child(scroll)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"Pause%sScroll"%kind.capitalize());scroll.position=Vector2(8,36);scroll.size=Vector2(274,328);column.add_child(scroll)
 	var rows:=VBoxContainer.new();rows.custom_minimum_size=Vector2(262,0);rows.add_theme_constant_override("separation",6);scroll.add_child(rows)
 	for entry in entries:add_pause_reward_row(rows,kind,entry)
 

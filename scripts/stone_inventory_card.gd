@@ -13,6 +13,11 @@ func setup(data: Dictionary) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		var ancestor := get_parent()
+		while ancestor != null:
+			if ancestor.has_method("is_suppressing_tap") and ancestor.is_suppressing_tap():
+				return
+			ancestor = ancestor.get_parent()
 		chosen.emit(item_data)
 
 func _get_drag_data(_at_position: Vector2) -> Variant:

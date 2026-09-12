@@ -1,7 +1,7 @@
 # iPad touch-scrolling review
 
-Status: **Deferred**. Brighton plans to address most or all of this work. Recheck
-the latest upstream version on a physical iPad before implementing anything.
+Status: **Implemented on `ipad-release`**. Retest on a physical iPad before the
+next family build is distributed.
 
 ## Already addressed upstream
 
@@ -10,9 +10,10 @@ scrollbar were replaced with a fixed two-row grid. All 16 ingredients now fit
 without scrolling. This change is present on `ipad-release`, but was not in the
 first Xcode snapshot installed for testing.
 
-## Scrollable areas to retest
+## Touch-enabled areas
 
-The current game still creates scrollable views in these active areas:
+The shared `TouchScrollContainer` now provides one-finger swiping in these
+active areas:
 
 1. Resources: ingredient inventory (vertical)
 2. Resources: special items and leftovers (vertical)
@@ -27,26 +28,24 @@ The current game still creates scrollable views in these active areas:
 There is also an obsolete legacy team screen with a scroll view. It is not
 currently reachable by players and does not need an iPad-specific adjustment.
 
-## Intended iPad behavior
+## Implemented iPad behavior
 
 - Swipe the content itself with one finger; never require grabbing a small bar.
 - Hide scrollbars while preserving touch scrolling.
 - Lock each view to its intended horizontal or vertical direction.
 - Use a small movement threshold so taps remain taps.
 - Preserve mouse-wheel and trackpad scrolling on desktop builds.
-- Carefully test the Cooking spice row because a card must support both
-  horizontal swiping and dragging into a pot slot.
+- The Cooking spice row claims sideways swipes, while an upward drag remains
+  available for dragging a spice into the pot.
+- A short tap still selects a Power Stone; a swipe suppresses the emulated
+  mouse release so it cannot select the stone under the finger.
+- A gentle inertial glide continues briefly after a quick swipe.
 
-## Revisit checklist
+## Release checklist
 
-1. Merge Brighton's latest upstream work.
+1. Run `tests/touch_scrolling.gd` and `tests/smoke.gd`.
 2. Export a fresh Xcode project and test all nine areas on a physical iPad.
-3. Remove any item from this list that Brighton has already corrected.
-4. For remaining Godot `ScrollContainer` views, use hidden-scrollbar modes that
-   keep built-in touch dragging enabled; do not remove the internal scrollbars.
-5. Add regression checks for direction, hidden bars, and the touch deadzone.
-6. Verify tapping, dragging items, and swiping on the physical iPad before
-   publishing the next build.
+3. Verify tapping, dragging items, and swiping before publishing the next build.
 
 ## Completion criteria
 
