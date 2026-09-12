@@ -18,7 +18,7 @@ func material(color: Color, roughness := 0.82) -> StandardMaterial3D:
 	mat.roughness = roughness
 	return mat
 
-func mesh_part(mesh: PrimitiveMesh, pos: Vector3, mat: Material, part_scale := Vector3.ONE) -> MeshInstance3D:
+func mesh_part(mesh: Mesh, pos: Vector3, mat: Material, part_scale := Vector3.ONE) -> MeshInstance3D:
 	var part := MeshInstance3D.new()
 	part.mesh = mesh
 	part.position = pos
@@ -35,6 +35,41 @@ func sphere(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	mesh.radial_segments = 10
 	mesh.rings = 6
 	return mesh_part(mesh, pos, mat, size)
+
+func water_drop_body(mat: Material) -> MeshInstance3D:
+	# Keep the familiar rounded toy body, but taper the upper third into a
+	# small water-drop point for the Plip family.
+	var profile := PackedVector2Array([
+		Vector2(0.00, 0.05),
+		Vector2(0.12, 0.34),
+		Vector2(0.34, 0.56),
+		Vector2(0.66, 0.63),
+		Vector2(0.91, 0.58),
+		Vector2(1.10, 0.47),
+		Vector2(1.28, 0.29),
+		Vector2(1.47, 0.01),
+	])
+	var radial_segments := 12
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring in profile.size() - 1:
+		var lower := profile[ring]
+		var upper := profile[ring + 1]
+		for segment in radial_segments:
+			var angle_a := TAU * float(segment) / float(radial_segments)
+			var angle_b := TAU * float(segment + 1) / float(radial_segments)
+			var lower_a := Vector3(cos(angle_a) * lower.y, lower.x, sin(angle_a) * lower.y * 0.86)
+			var upper_a := Vector3(cos(angle_a) * upper.y, upper.x, sin(angle_a) * upper.y * 0.86)
+			var upper_b := Vector3(cos(angle_b) * upper.y, upper.x, sin(angle_b) * upper.y * 0.86)
+			var lower_b := Vector3(cos(angle_b) * lower.y, lower.x, sin(angle_b) * lower.y * 0.86)
+			surface.add_vertex(lower_a)
+			surface.add_vertex(upper_a)
+			surface.add_vertex(upper_b)
+			surface.add_vertex(lower_a)
+			surface.add_vertex(upper_b)
+			surface.add_vertex(lower_b)
+	surface.generate_normals()
+	return mesh_part(surface.commit(), Vector3.ZERO, mat)
 
 func box(pos: Vector3, size: Vector3, mat: Material, rotation := Vector3.ZERO) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
@@ -53,8 +88,12 @@ func build_model() -> void:
 		build_imported_model(str(s.model));return
 	var dark := material(GameData.COLORS.ink, 0.55)
 	var white := material(Color.WHITE, 0.45)
-	# Chunky low-poly body.
-	sphere(Vector3(0,0.68,0),Vector3(1.22,1.16,1.08),body_material)
+	# Chunky low-poly body. Plip and Swellit share a subtly pointed,
+	# water-drop silhouette while retaining the same width and depth.
+	if str(s.get("family", "")) == "plip":
+		water_drop_body(body_material)
+	else:
+		sphere(Vector3(0,0.68,0),Vector3(1.22,1.16,1.08),body_material)
 	sphere(Vector3(0,0.38,0.08),Vector3(.76,.62,.82),material(s.color.lightened(.09)))
 	# Feet establish a grounded, toy-like silhouette.
 	sphere(Vector3(-.34,.08,.14),Vector3(.4,.2,.5),accent_material)
