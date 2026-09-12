@@ -971,7 +971,7 @@ func build_equipment_inventory(parent:Control)->void:
 	var page_start:=stone_inventory_page*16;var page_end:=mini(entries.size(),page_start+16)
 	for entry_index in range(page_start,page_end):add_stone_inventory_card(grid,entries[entry_index])
 	if entries.is_empty():label(grid,"No %s Stones owned"%STONE_INVENTORY_FILTERS[stone_inventory_filter].capitalize(),Vector2(0,20),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,STONE_GRID_WIDTH)
-	add_page_navigation(parent,stone_inventory_page,page_count,Vector2(14,582),356,set_stone_page)
+	add_page_navigation(parent,stone_inventory_page,page_count,Vector2(14,582),356,set_stone_page,true)
 
 func add_stone_inventory_card(parent:Control,data:Dictionary)->void:
 	var card_size:=stone_card_size();var fitted:bool=data.get("fitted",false)
@@ -997,13 +997,15 @@ func set_stone_inventory_filter(category:String)->void:
 	if not selected_inventory_item.is_empty() and stone_inventory_category(selected_inventory_item)!=category:selected_inventory_item.clear()
 	show_quiblet_edit()
 
-func add_page_navigation(parent:Control,current_page:int,page_count:int,pos:Vector2,navigation_width:float,callback:Callable)->void:
+func add_page_navigation(parent:Control,current_page:int,page_count:int,pos:Vector2,navigation_width:float,callback:Callable,arrows_together:=false)->void:
 	var navigation:=Control.new();navigation.name="PageNavigation";navigation.position=pos;navigation.size=Vector2(navigation_width,38);parent.add_child(navigation)
 	var back:=add_button(navigation,"‹",Vector2(0,0),Vector2(44,36),func():callback.call(current_page-1),"plain");back.name="PreviousPage";back.disabled=current_page<=0
-	var next:=add_button(navigation,"›",Vector2(navigation_width-44,0),Vector2(44,36),func():callback.call(current_page+1),"plain");next.name="NextPage";next.disabled=current_page>=page_count-1
+	var next_x:=50.0 if arrows_together else navigation_width-44.0
+	var next:=add_button(navigation,"›",Vector2(next_x,0),Vector2(44,36),func():callback.call(current_page+1),"plain");next.name="NextPage";next.disabled=current_page>=page_count-1
 	var dots:=""
 	for page_index in page_count:dots+=("●" if page_index==current_page else "○")+("  " if page_index<page_count-1 else "")
-	var dots_label:=label(navigation,dots,Vector2(48,8),14,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,int(navigation_width-96));dots_label.name="PageDots"
+	var dots_x:=102.0 if arrows_together else 48.0;var dots_width:=navigation_width-dots_x if arrows_together else navigation_width-96.0
+	var dots_label:=label(navigation,dots,Vector2(dots_x,8),14,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,int(dots_width));dots_label.name="PageDots"
 
 func select_inventory_stone(data:Dictionary)->void:
 	selected_inventory_item=data.duplicate(true);stone_inventory_filter=stone_inventory_category(data);show_quiblet_edit()

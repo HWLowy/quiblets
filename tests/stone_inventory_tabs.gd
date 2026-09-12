@@ -37,6 +37,8 @@ func run()->void:
 	check(visible.size()==2 and visible.all(func(card):return game.stone_inventory_category(card.item_data)=="attack") and visible[0].item_data.power==80 and game.selected_inventory_item.is_empty(),"The Attack tab should show only Attack stones and clear a hidden Health detail")
 	game.set_stone_inventory_filter("move");await process_frame;visible=cards(game)
 	check(visible.size()==16 and visible.all(func(card):return card.item_data.kind=="move_stone") and not game.content.find_child("NextPage",true,false).disabled,"The Move tab should show a full first page and offer another page")
+	var previous:Button=game.content.find_child("PreviousPage",true,false);var next:Button=game.content.find_child("NextPage",true,false);var screen_back:TextureButton=game.content.find_child("BackButton",true,false)
+	check(next.position.x==previous.position.x+previous.size.x+6 and not next.get_global_rect().intersects(screen_back.get_global_rect()),"The right page arrow should sit beside the left arrow and stay clear of the screen Back button")
 	game.content.find_child("NextPage",true,false).pressed.emit();await process_frame
 	check(game.stone_inventory_page==1 and cards(game).size()==2,"Paging should be calculated independently inside the active tab")
 	game.set_stone_inventory_filter("health");await process_frame
