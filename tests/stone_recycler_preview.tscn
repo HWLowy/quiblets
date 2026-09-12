@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/stone_recycler_preview.gd" id="1_recycler"]
+
+[node name="StoneRecyclerPreview" type="Node"]
+script = ExtResource("1_recycler")
