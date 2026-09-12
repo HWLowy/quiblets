@@ -5,8 +5,10 @@ Status: approved family edition, maintained on `ipad-release` until Brighton rep
 ## Source of truth
 
 - `scripts/quiblet_visual_overrides.gd` contains the custom procedural geometry.
+- `scripts/quiblet_portrait.gd` mirrors those features in the game's small 2D portraits.
 - `scripts/quiblet_model_3d.gd` contains two small hooks that apply the custom body and species features.
 - `tests/quiblet_visual_overrides_preview.tscn` displays every maintained design together.
+- `tests/quiblet_portrait_preview.tscn` displays the matching portraits together.
 - `tests/visual_overrides.gd` verifies that each override remains connected after a merge.
 
 ## Current overrides
@@ -27,4 +29,5 @@ After every upstream merge:
 1. Run `tests/smoke.gd`.
 2. Run `tests/visual_overrides.gd`.
 3. Open `tests/quiblet_visual_overrides_preview.tscn` with **F6** for a visual check.
-4. Confirm `project.godot` still starts `res://main.tscn` before exporting the iPad build.
+4. Open `tests/quiblet_portrait_preview.tscn` with **F6** to check the small icons.
+5. Confirm `project.godot` still starts `res://main.tscn` before exporting the iPad build.

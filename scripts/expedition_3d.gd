@@ -430,18 +430,34 @@ func prop_kinds()->Array[String]:
 
 const HARVEST_BUNDLES:=2
 const HARVEST_BUNDLE_RANGE:=Vector2i(4,8)
-const BREAK_BUNDLE_RANGE:=Vector2i(2,4)
+const BREAK_DROP_CHANCES:=Vector3(.25,.10,.05) # Exactly 1, 2, or 3 ingredients.
+const GROVE_BREAK_DROP_CHANCES:=Vector3(.30,.15,.10)
+const BREAK_DROP_TIER_LEVEL_BONUS:=4
 
 # Ingredients a prop grows: the stage-level roll restricted to its tags.
-func prop_ingredient(prop)->String:
+func prop_ingredient(prop,level_bonus:=0)->String:
 	var candidates:Array=[]
 	for ingredient_name in GameData.INGREDIENTS:
 		if GameData.INGREDIENTS[ingredient_name].tags.any(func(tag):return prop.harvest_tags().has(tag)):candidates.append(ingredient_name)
-	return GameData.roll_ingredient(stage_level,candidates) if not candidates.is_empty() else GameData.roll_ingredient(stage_level)
+	var effective_level:=stage_level+int(level_bonus)
+	return GameData.roll_ingredient(effective_level,candidates) if not candidates.is_empty() else GameData.roll_ingredient(effective_level)
+
+func grant_prop_amount(prop,amount:int,level_bonus:=0)->void:
+	var ingredient:=prop_ingredient(prop,level_bonus);loot[ingredient]+=amount
+	reward_acquired.emit({"kind":"ingredient","name":ingredient,"amount":amount},prop.global_position)
 
 func grant_prop_bundle(prop,bundle_range:Vector2i)->void:
-	var ingredient:=prop_ingredient(prop);var amount:=randi_range(bundle_range.x,bundle_range.y);loot[ingredient]+=amount
-	reward_acquired.emit({"kind":"ingredient","name":ingredient,"amount":amount},prop.global_position)
+	grant_prop_amount(prop,randi_range(bundle_range.x,bundle_range.y))
+
+# Area moves should make scenery loot exciting rather than dependable. The
+# listed probabilities are mutually exclusive; the remaining chance is no drop.
+func prop_break_amount(roll:float=-1.0)->int:
+	var chances:=GROVE_BREAK_DROP_CHANCES if is_grove() else BREAK_DROP_CHANCES
+	var value:=randf() if roll<0.0 else clampf(roll,0.0,.999999)
+	if value<float(chances.z):return 3
+	if value<float(chances.z+chances.y):return 2
+	if value<float(chances.z+chances.y+chances.x):return 1
+	return 0
 
 # Harvesting: a living team member within HARVEST_RADIUS of a harvestable prop
 # fills its progress; progress drains when nobody is near. A full harvest gives
@@ -482,8 +498,11 @@ func _on_prop_destroyed(prop)->void:
 	# Rebuild the obstacle runs in place so every actor's reference stays valid.
 	obstacles.clear();build_obstacles()
 	if prop.harvested:return
-	# Broken by a move: a harvestable prop still drops a small bundle.
-	if prop.HARVEST_TAGS.has(prop.kind) and not ended:grant_prop_bundle(prop,BREAK_BUNDLE_RANGE)
+	# Broken by a move: most props drop nothing. A successful roll receives a
+	# modest rarity boost compared with ordinary ground and enemy drops.
+	if prop.HARVEST_TAGS.has(prop.kind) and not ended:
+		var amount:=prop_break_amount()
+		if amount>0:grant_prop_amount(prop,amount,BREAK_DROP_TIER_LEVEL_BONUS)
 	event_message.emit("The %s breaks apart!"%prop.kind.replace("_"," "))
 
 func props_in(center:Vector3,size:float)->Array:
