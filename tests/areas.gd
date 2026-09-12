@@ -32,8 +32,15 @@ func run()->void:
 	game.set_map_page(5);await process_frame
 	var click:=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_LEFT;click.pressed=true;click.position=game.camera_3d.unproject_position(Vector3.ZERO)
 	game._unhandled_input(click);await process_frame
+	check(game.screen=="map","Pressing an island should wait for finger-up before changing screens")
+	click.pressed=false;game._unhandled_input(click);await process_frame
 	check(game.screen=="area_levels" and game.selected_area_index==15 and game.expedition==null,"Island click bypassed the level menu")
 	check(game.content.find_child("BackButton",true,false)!=null,"Level menu needs a return button")
+	var guarded_level:Button=game.content.find_child("PlayLevel0",true,false);guarded_level.pressed.emit();await process_frame
+	check(game.screen=="area_levels","The island gesture or a double-tap must not spill through and launch a level")
+	game.area_level_selection_ready_msec=0;guarded_level.pressed.emit();await process_frame
+	check(game.screen=="expedition","A fresh, explicit level tap should launch the selected level")
+	game.expedition.finish(false);await process_frame
 	for area in 16:
 		game.show_area_levels(area);await process_frame
 		check(game.area_progress[area]==0,"Fresh area unexpectedly has progress")

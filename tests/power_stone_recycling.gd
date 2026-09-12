@@ -49,9 +49,9 @@ func run()->void:
 	game.power_stone_inventory.clear()
 	for index in 12:game.power_stone_inventory.append(stone("Health" if index%2==0 else "Attack",index%5+1,["Health"] if index%3==0 else []))
 	game.show_resources();await process_frame
-	check(game.content.find_child("OpenStoneRecycler",true,false)!=null,"Resources should have a dedicated Recycle Stones button")
+	check(game.content.find_child("OpenStoneWorkshop",true,false)!=null and game.content.find_child("OpenStoneRecycler",true,false)==null,"Resources should expose recycling inside the Stone Workshop instead of as a separate destination")
 	game.begin_stone_recycler();await process_frame
-	check(game.screen=="stone_recycler" and game.content.find_child("RecyclerStoneScroll",true,false)!=null and game.content.find_children("RecyclerStone*","StoneInventoryCard",true,false).size()==12,"The recycler should show every unfitted stone in a touch-scrollable grid")
+	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.content.find_child("WorkshopMode_recycle",true,false)!=null and game.content.find_child("RecyclerStoneScroll",true,false)!=null and game.content.find_children("RecyclerStone*","StoneInventoryCard",true,false).size()==12,"The Recycler workshop tab should show every unfitted stone in a touch-scrollable grid")
 	for index in 10:game.toggle_recycler_stone(index)
 	game.toggle_recycler_stone(10);await process_frame
 	check(game.stone_recycler_selected.size()==10 and not game.stone_recycler_selected.has(10),"The recycler must refuse an eleventh selected stone")
@@ -66,7 +66,7 @@ func run()->void:
 	var awarded:=0
 	for reward in game.last_recycle_rewards:awarded+=int(reward.amount)
 	check(game.power_stone_inventory.size()==2 and ingredient_total(game)-before_ingredients==expected_ingredients and awarded==expected_ingredients,"Recycling ten normal outcomes should remove exactly those ten stones and grant the full combined payout")
-	check(game.screen=="stone_recycler" and game.stone_recycler_selected.is_empty() and game.content.find_children("RecyclerRewardRow*","",true,false).size()==game.last_recycle_rewards.size() and game.content.find_children("RecycleRewardFlash*","",true,false).size()==game.last_recycle_rewards.size(),"The complete reward list should remain visible while pickup-style reward cards flash")
+	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.stone_recycler_selected.is_empty() and game.content.find_children("RecyclerRewardRow*","",true,false).size()==game.last_recycle_rewards.size() and game.content.find_children("RecycleRewardFlash*","",true,false).size()==game.last_recycle_rewards.size(),"The complete reward list should remain visible in the Recycler tab while pickup-style reward cards flash")
 
 	var before_specials:=special_total(game);game.stone_recycler_selected.clear();game.stone_recycler_selected.append(0);game.recycle_selected_power_stones(0.0,rng);await process_frame
 	check(special_total(game)==before_specials+1 and game.last_recycle_rewards.size()==1 and game.last_recycle_rewards[0].kind=="special","A batch special roll should replace ingredients and enter the special-item inventory")

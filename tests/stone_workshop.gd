@@ -128,12 +128,12 @@ func run()->void:
 	var attack_powers:Array=entries.filter(func(entry):return entry.stone_type=="Attack").map(func(entry):return int(entry.power))
 	check(entries.size()==game.power_stone_inventory.size()+1 and fitted_entries.size()==1 and int(fitted_entries[0].power)==777 and fitted_entries[0].owner==GameData.display_name(owner_q) and not fitted_entries[0].has("inventory_index") and attack_powers[0]==777 and range(attack_powers.size()-1).all(func(i):return attack_powers[i]>=attack_powers[i+1]),"Every owned stone is listed in one type-and-power order, fitted ones in their natural place with their owner and no inventory index")
 	game.begin_stone_workshop("combine");game.show_stone_workshop();await process_frame
-	var fitted_card=game.content.find_child("WorkshopFitted0_%d"%owner_slot,true,false)
+	var fitted_cards:Array=game.content.find_children("WorkshopFitted*","",true,false);var fitted_card:Node=fitted_cards[0] if not fitted_cards.is_empty() else null
 	check(fitted_card!=null and fitted_card.find_child("FittedOwnerBadge",true,false)!=null and fitted_card.find_child("FittedStoneIcon",true,false).modulate.r<1.0 and fitted_card._get_drag_data(Vector2.ZERO)==null,"A fitted stone's card is darkened, badged with its owner, and not draggable")
-	fitted_card.chosen.emit(fitted_card.item_data);await process_frame
+	if fitted_card!=null:fitted_card.chosen.emit(fitted_card.item_data);await process_frame
 	check(game.stone_workshop.selected.is_empty(),"Clicking a fitted stone in the workshop selects nothing")
 	game.selected_roster=0;game.select_inventory_stone(game.fitted_power_stone_data(owner_q.power_slot_stones[owner_slot],0,owner_slot));await process_frame
-	check(game.content.find_child("FittedStoneNote",true,false)!=null and game.content.find_child("RecyclePowerStone",true,false)==null and game.content.find_children("FittedOwnerBadge","",true,false).size()==1,"The Quiblet menu lists the fitted stone with its badge and offers no recycling for it")
+	check(game.content.find_child("FittedStoneNote",true,false)!=null and game.content.find_child("OpenStoneWorkshopFromQuiblet",true,false)==null and game.content.find_children("FittedOwnerBadge","",true,false).size()==1,"The Quiblet menu lists the fitted stone with its badge and keeps its direct removal action")
 	owner_q.power_slot_stones[owner_slot]={}
 	# The removed charms are gone from drops and the item list.
 	check(not GameData.SPECIAL_ITEM_DROP_WEIGHTS.has("Reforger Charm") and not game.special_items.has("Conversion Charm"),"The stone charms no longer exist")

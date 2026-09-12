@@ -98,26 +98,18 @@ func run()->void:
 	var berries_before:int=game.special_items["Bountiful Berry"]
 	game._on_expedition_finished(finished);await process_frame
 	check(game.special_items["Treasure Key"]==1 and game.special_items["Bountiful Berry"]==berries_before+1 and game.expedition_haul_entries().filter(func(entry):return entry.kind=="special").size()==2,"Cache specials should be banked and listed in the haul")
-	# Unfitted Power Stones can still be recycled singly from their detail panel; fitted ones cannot.
+	# Stone management from a Quiblet now opens the centralized Workshop Recycler.
 	game.show_camp();await process_frame
 	game.power_stone_inventory.clear();game.power_stone_inventory.append(GameData.make_power_stone("Health",2,["Movement Speed"]))
 	game.selected_roster=0;game.select_inventory_stone(game.power_stone_inventory_data(game.power_stone_inventory[0],0));await process_frame
-	var recycle_button:Button=game.content.find_child("RecyclePowerStone",true,false)
-	check(game.screen=="edit_quiblet" and recycle_button!=null and recycle_button.text=="RECYCLE POWER STONE","An inventory stone should offer single-stone recycling")
-	var totals_before:int=0
-	for name in game.ingredients:totals_before+=int(game.ingredients[name])
-	recycle_button.pressed.emit();await process_frame
-	var confirmation=game.content.find_child("RecycleStoneConfirmation",true,false)
-	check(confirmation!=null and game.power_stone_inventory.size()==1 and confirmation.find_child("ConfirmRecycleStone",true,false)!=null,"Recycling should ask for confirmation before destroying the stone")
-	confirmation.find_child("CancelRecycleStone",true,false).pressed.emit();await process_frame
-	check(game.content.find_child("RecycleStoneConfirmation",true,false)==null and game.power_stone_inventory.size()==1,"Cancelling keeps the stone")
-	# Force the ordinary path here; the dedicated recycler test covers the rare alternatives.
-	game.recycle_power_stone(0,.5);await process_frame
-	var totals_after:int=0
-	for name in game.ingredients:totals_after+=int(game.ingredients[name])
-	check(game.power_stone_inventory.is_empty() and totals_after-totals_before==4 and game.selected_inventory_item.is_empty() and game.screen=="edit_quiblet","Single recycling should remove the stone and grant its ordinary ingredient payout")
+	var workshop_button:Button=game.content.find_child("OpenStoneWorkshopFromQuiblet",true,false)
+	check(game.screen=="edit_quiblet" and workshop_button!=null and workshop_button.text=="STONE WORKSHOP","An inventory stone should link to the centralized Stone Workshop")
+	workshop_button.pressed.emit();await process_frame
+	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.stone_recycler_selected==[0],"The Quiblet shortcut should open the Recycler tab with the inspected stone selected")
+	game.leave_stone_workshop();await process_frame
+	check(game.screen=="edit_quiblet","Leaving a Stone Workshop opened from a Quiblet should return to that Quiblet")
 	var fitted:Dictionary=GameData.normalize_power_stone(GameData.make_power_stone("Attack",1,[]));fitted.kind="power_stone";fitted.display_name="Fitted stone"
 	game.select_inventory_stone(fitted);await process_frame
-	check(game.content.find_child("RecyclePowerStone",true,false)==null,"A fitted stone must not offer recycling")
+	check(game.content.find_child("OpenStoneWorkshopFromQuiblet",true,false)==null,"A fitted stone keeps its direct removal action instead of a recycling shortcut")
 	print("QUIBLETS_SPECIAL_ITEMS_OK checks=",checks," failures=",failures)
 	quit(0 if failures==0 else 1)

@@ -106,6 +106,9 @@ var stone_inventory_page:=0
 var stone_inventory_filter:="health"
 var stone_recycler_selected:Array[int]=[]
 var last_recycle_rewards:Array[Dictionary]=[]
+var stone_workshop_return_screen:="resources"
+var spice_workshop_return_screen:="resources"
+var area_level_selection_ready_msec:=0
 var selection_pulse_roster:=-1
 var team_preview_camera:Camera3D
 var team_preview_models:Array[Dictionary]=[]
@@ -894,7 +897,7 @@ func build_stone_detail(parent:Control)->void:
 			var remove:=add_button(parent,"REMOVE FROM QUIBLET",Vector2(18,163),Vector2(348,34),func(item=data.duplicate(true)):remove_selected_fitted_stone(item),"coral");remove.name="RemoveFittedStone"
 		# Only unfitted inventory stones can be recycled; a fitted stone is inspected in place.
 		if int(data.get("inventory_index",-1))>=0:
-			var recycle:=add_button(parent,"RECYCLE POWER STONE",Vector2(18,158),Vector2(348,34),func(index=int(data.inventory_index)):request_recycle_power_stone(index),"leaf");recycle.name="RecyclePowerStone"
+			var workshop:=add_button(parent,"STONE WORKSHOP",Vector2(18,158),Vector2(348,34),func(index=int(data.inventory_index)):open_stone_workshop_from_quiblet(index),"leaf");workshop.name="OpenStoneWorkshopFromQuiblet"
 	else:
 		var info:Dictionary=GameData.stone_info(str(data.effect));var icon:=TextureRect.new();icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.custom_minimum_size=Vector2.ZERO;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.texture=load(info.texture);icon.position=Vector2(20,54);icon.size=Vector2(50,50);parent.add_child(icon)
 		var description:=RichTextLabel.new();description.name="StoneDetailDescription";description.text=str(info.desc);description.position=Vector2(82,53);description.size=Vector2(270,96);description.custom_minimum_size=Vector2.ZERO;description.fit_content=false;description.scroll_active=false;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;description.add_theme_font_size_override("normal_font_size",11);description.add_theme_color_override("default_color",GameData.COLORS.ink);parent.add_child(description)
@@ -1119,8 +1122,9 @@ func recycle_reward_summary(rewards:Array)->String:
 	for reward in rewards:parts.append("%s ×%d"%[recycle_reward_name(reward),int(reward.get("amount",1))])
 	return ", ".join(parts)
 
-func begin_stone_recycler()->void:
-	stone_recycler_selected.clear();last_recycle_rewards.clear();show_stone_recycler()
+func begin_stone_recycler(return_screen:String="resources")->void:
+	stone_workshop_return_screen=return_screen
+	stone_recycler_selected.clear();last_recycle_rewards.clear();begin_stone_workshop("recycle");show_stone_workshop()
 
 func recycler_selected_stones()->Array:
 	var stones:Array=[]
@@ -1142,12 +1146,15 @@ func recycler_normal_ingredient_total()->int:
 	return total
 
 func show_stone_recycler()->void:
-	screen="stone_recycler";clear_content();add_menu_backdrop()
+	stone_workshop.mode="recycle"
+	screen="stone_workshop";clear_content();add_menu_backdrop()
 	stone_recycler_selected=stone_recycler_selected.filter(func(index):return int(index)>=0 and int(index)<power_stone_inventory.size())
-	var left:=panel(Rect2(30,68,585,624),Color("#fffaf0"),18);left.name="StoneRecycler";content.add_child(left)
-	label(left,"POWER STONE RECYCLER",Vector2(22,14),20,GameData.COLORS.ink,true)
-	label(left,"Tap up to 10 unfitted stones. Selected stones have a green border.",Vector2(22,46),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
-	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecyclerStoneScroll");scroll.position=Vector2(16,82);scroll.size=Vector2(552,524);left.add_child(scroll)
+	var left:=panel(Rect2(30,68,585,624),Color("#fffaf0"),18);left.name="StoneWorkshop";content.add_child(left)
+	label(left,"STONE WORKSHOP",Vector2(22,14),20,GameData.COLORS.ink,true)
+	add_stone_workshop_tabs(left,"recycle")
+	label(left,STONE_WORKSHOP_MODES.recycle.blurb,Vector2(22,86),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
+	label(left,"Tap up to 10 unfitted stones. Selected stones have a green border.",Vector2(22,140),12,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_LEFT,540)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecyclerStoneScroll");scroll.position=Vector2(16,174);scroll.size=Vector2(552,432);left.add_child(scroll)
 	var grid:=GridContainer.new();grid.name="RecyclerGrid";grid.columns=6;grid.add_theme_constant_override("h_separation",10);grid.add_theme_constant_override("v_separation",10);scroll.add_child(grid)
 	var entries:=all_power_stone_entries().filter(func(entry):return not bool(entry.get("fitted",false)))
 	for data in entries:
@@ -1158,7 +1165,7 @@ func show_stone_recycler()->void:
 	if entries.is_empty():label(scroll,"No unfitted Power Stones are available.",Vector2.ZERO,14,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,540)
 	var right:=panel(Rect2(635,68,615,624),Color("#f7f3ff"),18);right.name="RecyclerDetail";content.add_child(right)
 	build_stone_recycler_detail(right)
-	add_back_button(content,BACK_BUTTON_POSITION,show_resources)
+	add_back_button(content,BACK_BUTTON_POSITION,leave_stone_workshop)
 
 func build_stone_recycler_detail(parent:Control)->void:
 	label(parent,"SELECTED  %d / %d"%[stone_recycler_selected.size(),POWER_STONE_RECYCLE_MAX_BATCH],Vector2(22,16),20,GameData.COLORS.ink,true)
@@ -1199,7 +1206,7 @@ func request_recycle_selected_power_stones()->void:
 func recycle_selected_power_stones(outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->void:
 	if stone_recycler_selected.is_empty():return
 	var recycled_count:=stone_recycler_selected.size();var rewards:=consume_recycled_power_stones(stone_recycler_selected,outcome_roll_override,rng)
-	stone_recycler_selected.clear();last_recycle_rewards=rewards;show_stone_recycler();show_recycle_reward_flashes(rewards)
+	stone_recycler_selected.clear();last_recycle_rewards=rewards;selected_inventory_item={};show_stone_recycler();show_recycle_reward_flashes(rewards)
 	toast("Recycled %d Power Stone%s into %s."%[recycled_count,"" if recycled_count==1 else "s",recycle_reward_summary(rewards)],GameData.COLORS.leaf)
 
 func equip_stone_from_inventory(kind:String,primary_index:int,secondary_index:int,data:Dictionary)->void:
@@ -1479,14 +1486,13 @@ func show_resources() -> void:
 			label(unknown_icon,"?",Vector2.ZERO,28,GameData.COLORS.muted,true,HORIZONTAL_ALIGNMENT_CENTER,40)
 			label(card,"Unknown",Vector2(52,13),15,GameData.COLORS.muted,true)
 			label(card,"× 0",Vector2(52,39),19,GameData.COLORS.muted,true)
-	add_button(left,"SPICE WORKSHOP",Vector2(20,493),Vector2(260,50),func():show_spice_workshop(),"gold")
-	add_button(left,"GO TO COOKING",Vector2(290,493),Vector2(275,50),open_cooking_pot,"leaf")
+	add_button(left,"SPICE WORKSHOP",Vector2(20,493),Vector2(260,50),func():open_spice_workshop("resources"),"gold")
+	var cooking_button:=add_button(left,"GO TO COOKING",Vector2(290,493),Vector2(275,50),show_cooking,"leaf");cooking_button.name="GoToCooking"
 	var right:=panel(Rect2(635,112,615,565),Color("#f7f3ff"),18); content.add_child(right)
 	label(right,"SPECIAL ITEMS",Vector2(22,19),18,GameData.COLORS.ink,true)
 	var desc:Dictionary=SPECIAL_ITEM_DESCRIPTIONS
 	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"SpecialItemScroll"); scroll.position=Vector2(16,58); scroll.size=Vector2(582,436); right.add_child(scroll)
-	var workshop_button:=add_button(right,"STONE WORKSHOP",Vector2(16,504),Vector2(360,44),func():show_stone_workshop(),"gold");workshop_button.name="OpenStoneWorkshop"
-	var recycler_button:=add_button(right,"RECYCLE STONES",Vector2(388,504),Vector2(210,44),begin_stone_recycler,"leaf");recycler_button.name="OpenStoneRecycler"
+	var workshop_button:=add_button(right,"STONE WORKSHOP",Vector2(16,504),Vector2(582,44),func():open_stone_workshop("combine","resources"),"gold");workshop_button.name="OpenStoneWorkshop"
 	var vb:=VBoxContainer.new(); vb.custom_minimum_size=Vector2(560,0); vb.add_theme_constant_override("separation",7); scroll.add_child(vb)
 	# Leftover jars are stored per recipe; they live here beside the special items
 	# so a filled jar is visible right after cooking, not only in the Recipe Journal.
@@ -1520,7 +1526,7 @@ func show_spice_workshop()->void:
 	label(workbench,"QUALITY",Vector2(22,386),14,GameData.COLORS.ink,true)
 	label(workbench,"Basic  →  Good  →  Great  →  Special",Vector2(22,414),17,GameData.COLORS.berry,true)
 	label(workbench,"Quality depends on the average resource tier. Higher quality creates a\nmuch stronger attraction bias and a larger arrival stat bonus.",Vector2(22,448),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,510)
-	add_back_button(content,BACK_BUTTON_POSITION,func():clear_spice_mix(true);show_resources())
+	add_back_button(content,BACK_BUTTON_POSITION,leave_spice_workshop)
 	# Selected ingredient information, mirroring the cooking menu's info panel.
 	var info_panel:=panel(Rect2(610,112,640,96),Color("#fffaf0"),14);info_panel.clip_contents=true;info_panel.name="SpiceItemInfo";content.add_child(info_panel)
 	if selected_cooking_ingredient.is_empty() or not GameData.INGREDIENTS.has(selected_cooking_ingredient):
@@ -1596,6 +1602,15 @@ func craft_spice()->void:
 	if newly_unlocked:unlocked_spices.append(recipe.name)
 	spice_inventory[recipe.name][quality]+=1;spice_mix.clear();selected_cooking_ingredient="";show_spice_workshop()
 	toast(("Discovered %s %s!" if newly_unlocked else "Crafted %s %s!")%[quality.capitalize(),recipe.name],spice_quality_color(quality))
+
+func open_spice_workshop(return_screen:String="resources")->void:
+	spice_workshop_return_screen=return_screen;show_spice_workshop()
+
+func leave_spice_workshop()->void:
+	clear_spice_mix(true)
+	var destination:=spice_workshop_return_screen;spice_workshop_return_screen="resources"
+	if destination=="cooking":show_cooking()
+	else:show_resources()
 
 func show_cooking() -> void:
 	if not completed_stew_result.is_empty():show_cook_result();return
@@ -1684,6 +1699,7 @@ func show_cooking() -> void:
 		var empty_jar_card:=CookingItemCard.new();empty_jar_card.name="EmptyLeftoverJarCard";empty_jar_card.position=Vector2(special_card_x,279);empty_jar_card.size=Vector2(190,58);resources_panel.add_child(empty_jar_card);empty_jar_card.setup("🫙","Empty Leftover Jar","collects leftovers",int(special_items["Empty Leftover Jar"]),GameData.COLORS.gold,{"kind":"special","id":"Empty Leftover Jar","label":"Empty Leftover Jar"});special_card_x+=200
 	if total>0 and int(leftovers.get(recipe.name,0))>0:
 		var leftover_card:=CookingItemCard.new();leftover_card.name="MatchingLeftoversCard";leftover_card.position=Vector2(special_card_x,279);leftover_card.size=Vector2(190,58);resources_panel.add_child(leftover_card);leftover_card.setup("🫙",recipe.name+" Leftovers","improves matching stew",int(leftovers[recipe.name]),recipe.color,{"kind":"special","id":"Leftovers:"+str(recipe.name),"label":"Leftovers"})
+	var spices_button:=add_button(content,"SPICE WORKSHOP",Vector2(624,646),Vector2(220,44),func():open_spice_workshop("cooking"),"leaf");spices_button.name="OpenSpiceWorkshopFromCooking"
 	add_back_button(content,Vector2(1182,646),func():request_leave_cooking(show_camp))
 
 func step_cooking_recipe(direction:int)->void:
@@ -2019,9 +2035,11 @@ func advance_pending_stew()->bool:
 	if pending_stew.is_empty():return false
 	pending_stew.expeditions_remaining=maxi(0,int(pending_stew.expeditions_remaining)-1)
 	if int(pending_stew.expeditions_remaining)>0:return false
-	for arrival in pending_stew.arrivals:roster.append(arrival)
+	var arrival_uids:Array[String]=[]
+	for arrival in pending_stew.arrivals:
+		roster.append(arrival);arrival_uids.append(str(arrival.get("uid","")))
 	if int(pending_stew.leftovers)>0:leftovers[pending_stew.recipe]=int(leftovers.get(pending_stew.recipe,0))+int(pending_stew.leftovers)
-	completed_stew_result={"recipe":pending_stew.recipe,"quality":pending_stew.quality,"score":pending_stew.score,"arrivals":pending_stew.arrival_names.duplicate(),"arrival_species":pending_stew.arrival_species.duplicate(),"leftovers":pending_stew.leftovers,"boosted":pending_stew.boosted}
+	completed_stew_result={"recipe":pending_stew.recipe,"quality":pending_stew.quality,"score":pending_stew.score,"arrivals":pending_stew.arrival_names.duplicate(),"arrival_species":pending_stew.arrival_species.duplicate(),"arrival_uids":arrival_uids,"leftovers":pending_stew.leftovers,"boosted":pending_stew.boosted}
 	var special_arrival:bool=completed_stew_result.arrival_species.any(func(species_index):return is_rare_arrival(int(species_index)))
 	pending_stew.clear()
 	play_quiblet_arrival_music(special_arrival)
@@ -2036,11 +2054,32 @@ func show_cook_result()->void:
 	var shown_species:=int(completed_stew_result.arrival_species[-1]);var p:=QuibletPortrait.new();p.position=Vector2(320,105);p.size=Vector2(220,220);p.setup(shown_species,1.1);card.add_child(p)
 	label(card,"Arrived: "+", ".join(completed_stew_result.arrivals),Vector2(30,328),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,800)
 	if int(completed_stew_result.leftovers)>0:label(card,"Your leftover jar collected %s Leftovers. Find them under Resources or the Recipe Journal: reinvest them in the same dish, or recycle them for ingredients."%completed_stew_result.recipe,Vector2(60,362),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,760)
-	add_button(card,"COOK AGAIN",Vector2(150,422),Vector2(250,52),dismiss_cooked_result,"gold")
+	var cook_again:=add_button(card,"COOK AGAIN",Vector2(105,422),Vector2(300,52),dismiss_cooked_result,"gold");cook_again.name="CookAgain"
+	var inspect:=add_button(card,"INSPECT QUIBLET",Vector2(455,422),Vector2(300,52),inspect_cooked_quiblet,"leaf");inspect.name="InspectCookedQuiblet"
 	add_back_button(content,BACK_BUTTON_POSITION,func():show_camp())
 
 func dismiss_cooked_result()->void:
 	completed_stew_result.clear();show_cooking()
+
+func cooked_result_quiblet_index()->int:
+	var arrival_uids:Array=completed_stew_result.get("arrival_uids",[])
+	if not arrival_uids.is_empty():
+		var by_uid:=find_roster_index(str(arrival_uids[-1]))
+		if by_uid>=0:return by_uid
+	# Saves made before arrival UIDs were recorded can still find the newest
+	# matching Quiblet because completed arrivals are appended to the roster.
+	var species_values:Array=completed_stew_result.get("arrival_species",[])
+	if species_values.is_empty():return -1
+	var shown_species:=int(species_values[-1])
+	for index in range(roster.size()-1,-1,-1):
+		if int(roster[index].get("species",-1))==shown_species:return index
+	return -1
+
+func inspect_cooked_quiblet()->void:
+	var roster_index:=cooked_result_quiblet_index()
+	completed_stew_result.clear()
+	if roster_index<0:show_all_quiblets();return
+	selected_roster=roster_index;selected_inventory_item={};show_quiblet_edit()
 
 func show_recipes()->void:
 	screen="recipes";clear_content();make_topbar("RECIPE JOURNAL","Discovered recipes explain their ingredient logic and can be prepared again quickly.",true)
@@ -2661,14 +2700,15 @@ func apply_quiblet_item(item:String,q:Dictionary)->void:
 		"Prodigy Fruit":q.prodigy=true
 
 # ---- Stone Workshop ---------------------------------------------------------
-# Combiner, Revitalizer, Converter, and Reforger act on unfitted inventory
+# Combiner, Revitalizer, Converter, Reforger, and Recycler act on unfitted inventory
 # Power Stones from one menu. Nothing is spent but the stones themselves: the
 # Combiner and Reforger consume inputs, the other two only change the stone.
 const STONE_WORKSHOP_MODES:={
 	"combine":{"title":"COMBINER","blurb":"Fuse 2–4 stones of one stat type that each carry a bonus. The result keeps the LOWEST input power, gains every bonus (matching stats add up), and its material follows its distinct stats: 2 Silver, 3 Gold, 4 Diamond, 5+ Obsidian. One Obsidian at most; every input is consumed. A stat holds at most 3 rolls per stone, and each stat's total across a Quiblet's equipped stones is capped."},
 	"revitalize":{"title":"REVITALIZER","blurb":"Raise an old stone's power to 90% of the average drop at your highest reached loot tier. Type, bonuses, and everything else stay."},
 	"convert":{"title":"CONVERTER","blurb":"Turn a Health stone into an Attack stone, or an Attack stone into a Health stone. Power and bonuses are untouched."},
-	"reforge":{"title":"REFORGER","blurb":"Pick one bonus on a stone and consume a second stone that has a bonus. The picked bonus is replaced with a fresh random stat the stone does not already carry."}
+	"reforge":{"title":"REFORGER","blurb":"Pick one bonus on a stone and consume a second stone that has a bonus. The picked bonus is replaced with a fresh random stat the stone does not already carry."},
+	"recycle":{"title":"RECYCLER","blurb":"Break down up to ten unfitted stones at once. Each stone usually returns ingredients, with tier-scaled chances to return a spice or special item instead."}
 }
 var stone_workshop:={"mode":"combine","selected":[],"sacrifice":-1,"bonus_index":-1}
 
@@ -2699,7 +2739,30 @@ func begin_stone_workshop(mode:String="combine")->void:
 	stone_workshop={"mode":mode,"selected":[],"sacrifice":-1,"bonus_index":-1}
 
 func set_stone_workshop_mode(mode:String)->void:
-	begin_stone_workshop(mode);show_stone_workshop()
+	begin_stone_workshop(mode)
+	if mode=="recycle":stone_recycler_selected.clear();last_recycle_rewards.clear()
+	show_stone_workshop()
+
+func open_stone_workshop(mode:String="combine",return_screen:String="resources")->void:
+	stone_workshop_return_screen=return_screen;begin_stone_workshop(mode)
+	if mode=="recycle":stone_recycler_selected.clear();last_recycle_rewards.clear()
+	show_stone_workshop()
+
+func open_stone_workshop_from_quiblet(inventory_index:int)->void:
+	stone_workshop_return_screen="edit_quiblet";begin_stone_workshop("recycle")
+	stone_recycler_selected.clear();last_recycle_rewards.clear()
+	if inventory_index>=0 and inventory_index<power_stone_inventory.size():stone_recycler_selected.append(inventory_index)
+	show_stone_workshop()
+
+func leave_stone_workshop()->void:
+	var destination:=stone_workshop_return_screen;stone_workshop_return_screen="resources"
+	if destination=="edit_quiblet":show_quiblet_edit()
+	else:show_resources()
+
+func add_stone_workshop_tabs(parent:Control,mode:String)->void:
+	var keys:=STONE_WORKSHOP_MODES.keys();var gap:=5.0;var available:=541.0;var tab_width:=(available-gap*(keys.size()-1))/keys.size();var x:=22.0
+	for key in keys:
+		var tab:=add_button(parent,STONE_WORKSHOP_MODES[key].title,Vector2(x,46),Vector2(tab_width,34),func(pick=key):set_stone_workshop_mode(pick),"leaf" if key==mode else "plain");tab.name="WorkshopMode_%s"%key;x+=tab_width+gap
 
 # Clicking a stone toggles it. Combiner collects up to four inputs; Reforger
 # takes the stone to reforge first and the stone to consume second; the other
@@ -2768,14 +2831,13 @@ func workshop_hint()->String:
 	return ""
 
 func show_stone_workshop()->void:
+	if str(stone_workshop.mode)=="recycle":show_stone_recycler();return
 	screen="stone_workshop";clear_content();add_menu_backdrop()
 	var mode:String=str(stone_workshop.mode)
 	if not STONE_WORKSHOP_MODES.has(mode):begin_stone_workshop();mode="combine"
 	var left:=panel(Rect2(30,68,585,624),Color("#fffaf0"),18);content.add_child(left);left.name="StoneWorkshop"
 	label(left,"STONE WORKSHOP",Vector2(22,14),20,GameData.COLORS.ink,true)
-	var x:=22
-	for key in STONE_WORKSHOP_MODES:
-		var tab:=add_button(left,STONE_WORKSHOP_MODES[key].title,Vector2(x,46),Vector2(132,34),func(pick=key):set_stone_workshop_mode(pick),"leaf" if key==mode else "plain");tab.name="WorkshopMode_%s"%key;x+=137
+	add_stone_workshop_tabs(left,mode)
 	label(left,STONE_WORKSHOP_MODES[mode].blurb,Vector2(22,86),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
 	label(left,workshop_hint(),Vector2(22,164),13,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_LEFT,540)
 	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"WorkshopStoneScroll");scroll.position=Vector2(16,200);scroll.size=Vector2(552,406);left.add_child(scroll)
@@ -2795,7 +2857,7 @@ func show_stone_workshop()->void:
 	elif power_stone_inventory.is_empty():label(scroll,"Every owned stone is fitted on a Quiblet. Take one off to rework it.",Vector2(0,100),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
 	var right:=panel(Rect2(635,68,615,624),Color("#f7f3ff"),18);content.add_child(right);right.name="WorkshopDetail"
 	build_stone_workshop_detail(right)
-	add_back_button(content,BACK_BUTTON_POSITION,show_resources)
+	add_back_button(content,BACK_BUTTON_POSITION,leave_stone_workshop)
 
 func add_workshop_stone_row(parent:Node,stone:Dictionary,caption:String,name_hint:String)->Panel:
 	var lines:Array[String]=[]
@@ -3074,6 +3136,7 @@ func is_area_level_unlocked(area_index:int,level_index:int)->bool:
 
 func show_area_levels(area_index:int)->void:
 	selected_area_index=clampi(area_index,0,GameData.EXPEDITION_AREAS.size()-1);map_page=selected_area_index/AREAS_PER_PAGE
+	area_level_selection_ready_msec=Time.get_ticks_msec()+350
 	screen="area_levels";clear_content();build_area_route_world(selected_area_index);add_back_button(content,BACK_BUTTON_POSITION,show_map)
 	transition_to_expedition_music("level")
 	var route:=Control.new();route.name="AreaLevelRoute";route.position=Vector2(95,250);route.size=Vector2(1090,340);content.add_child(route)
@@ -3088,7 +3151,7 @@ func show_area_levels(area_index:int)->void:
 		label(card,"✓ CLEARED" if cleared else (eval.label if unlocked else "LOCKED"),Vector2(5,49),10,eval.color if unlocked else GameData.COLORS.muted,true,HORIZONTAL_ALIGNMENT_CENTER,106)
 		var metrics:Dictionary=eval.metrics
 		label(card,"♥ %s\n⚔ %s\n◎ %s"%[metrics.Survivability,metrics.Damage,metrics.Positioning],Vector2(8,68),9,GameData.COLORS.ink,false,HORIZONTAL_ALIGNMENT_LEFT,100)
-		var click:=Button.new();click.name="PlayLevel%d"%i;click.flat=true;click.position=Vector2.ZERO;click.size=card.size;click.disabled=not unlocked;click.tooltip_text="Play or replay this level" if unlocked else "Clear the previous level first";click.pressed.connect(start_area_level.bind(selected_area_index,i));card.add_child(click)
+		var click:=Button.new();click.name="PlayLevel%d"%i;click.flat=true;click.position=Vector2.ZERO;click.size=card.size;click.disabled=not unlocked;click.tooltip_text="Play or replay this level" if unlocked else "Clear the previous level first";click.pressed.connect(request_start_area_level.bind(selected_area_index,i));card.add_child(click)
 	var charms:=panel(Rect2(190,610,900,82),Color("#f4efffea"),14);content.add_child(charms)
 	add_toggle(charms,"Fortune Charm (%d) • rarer loot"%special_items["Fortune Charm"],Vector2(18,12),fortune_active,func():fortune_active=!fortune_active;show_area_levels(selected_area_index))
 	add_toggle(charms,"Challenger's Charm (%d) • more progress"%special_items["Challenger's Charm"],Vector2(468,12),challenger_active,func():challenger_active=!challenger_active;show_area_levels(selected_area_index))
@@ -3115,6 +3178,10 @@ func start_area_level(area_index:int,level_index:int)->void:
 	for index in team_indices:team_data.append(roster[index])
 	expedition.begin(team_data,difficulty_level,fortune_active,challenger_active)
 	build_expedition_hud()
+
+func request_start_area_level(area_index:int,level_index:int)->void:
+	if Time.get_ticks_msec()<area_level_selection_ready_msec:return
+	start_area_level(area_index,level_index)
 
 func _on_expedition_finished(result:Dictionary)->void:
 	last_result=result
@@ -3456,8 +3523,10 @@ func _unhandled_input(event:InputEvent)->void:
 		elif event is InputEventMouseMotion and camp_pan_dragging:
 			camp_pan_x=clampf(camp_pan_x-event.relative.x*.018,-7.0,7.0);camera_3d.position=Vector3(camp_pan_x,9.5,13.5);camera_3d.look_at(Vector3(camp_pan_x,0,0),Vector3.UP);get_viewport().set_input_as_handled()
 		return
-	if not (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed):return
 	if screen=="map":
+		# Enter the route on finger-up. If the route were created on finger-down,
+		# that same gesture's release could activate a level beneath the island.
+		if not (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed):return
 		var hit=screen_ray_ground(event.position)
 		if hit==null:return
 		var area_index:=map_area_at_point(hit)
