@@ -28,11 +28,11 @@ func _draw() -> void:
 	# Arms and flame peaks sit behind the body so their joins read as one smooth
 	# silhouette, matching the maintained 3D models.
 	if species_name in ["Spriggle", "Frondle"]:
-		draw_vine_arms(center, r, c, a, 0.78 if species_name == "Spriggle" else 1.0)
+		draw_vine_arms(center, r, c, a, 1.0)
 	if species_name in ["Sparko", "Scorchit"]:
-		draw_flame_crown(center, r, c, 0.78 if species_name == "Sparko" else 1.0)
+		draw_flame_crown(center, r, c, 0.95 if species_name == "Sparko" else 1.18)
 	# Species silhouettes.
-	var custom_shape_replaces_standard := species_name in ["Frondle", "Bloomie", "Scorchit"]
+	var custom_shape_replaces_standard := species_name in ["Spriggle", "Frondle", "Bloomie", "Scorchit"]
 	match s.shape if not custom_shape_replaces_standard else "custom":
 		"ears":
 			draw_colored_polygon(PackedVector2Array([center+Vector2(-r*.7,-r*.45),center+Vector2(-r*.52,-r*1.25),center+Vector2(-r*.12,-r*.62)]), c)
@@ -99,7 +99,7 @@ func _draw() -> void:
 		draw_circle(center+Vector2(r*.88,r*.18),r*.34,a)
 		draw_circle(center+Vector2(r*1.05,r*.02),r*.18,GameData.COLORS.gold)
 	match species_name:
-		"Spriggle": draw_leaf_hat(center, r, c.darkened(.18), 0.78)
+		"Spriggle": draw_leaf_hat(center, r, c.darkened(.18), 1.0)
 		"Frondle": draw_leaf_hat(center, r, c.darkened(.20), 1.0)
 		"Bloomie": draw_flower_hat(center, r)
 	# Face.

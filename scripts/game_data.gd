@@ -377,6 +377,12 @@ static func roll_treasure_key(stage_kind:String,fortune:bool,rng:RandomNumberGen
 static func roll_special_item(stage_kind:String,fortune:bool,rng:RandomNumberGenerator=null)->String:
 	var roll:=rng.randf() if rng!=null else randf()
 	if roll>=special_item_drop_chance(stage_kind,fortune):return ""
+	return choose_special_item(rng)
+
+# Picks from the existing special-item weights without making a second drop-
+# chance roll. Systems such as the recycler can supply their own rarity chance
+# while still awarding the same balanced pool of special items.
+static func choose_special_item(rng:RandomNumberGenerator=null)->String:
 	var total:=0
 	for weight in SPECIAL_ITEM_DROP_WEIGHTS.values():total+=int(weight)
 	var pick:=(rng.randi_range(0,total-1) if rng!=null else randi_range(0,total-1))
@@ -885,6 +891,9 @@ static func reward_sparkle_level(reward:Dictionary)->int:
 			var tier:=int(INGREDIENTS.get(str(reward.get("name","")),{}).get("tier",1))
 			return 2 if tier>=4 else (1 if tier==3 else 0)
 		"move_stone":return 1
+		"spice":
+			var quality_index:=SPICE_QUALITIES.find(str(reward.get("quality","basic")))
+			return 2 if quality_index>=3 else (1 if quality_index>=1 else 0)
 		"special":return 2
 		"power_stone":
 			var stone:=normalize_power_stone(reward)

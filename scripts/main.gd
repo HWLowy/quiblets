@@ -103,6 +103,8 @@ var quiblet_inventory_page:=0
 var cooking_recipe_index:=0
 var lid_drop_pending:=false
 var stone_inventory_page:=0
+var stone_recycler_selected:Array[int]=[]
+var last_recycle_rewards:Array[Dictionary]=[]
 var selection_pulse_roster:=-1
 var team_preview_camera:Camera3D
 var team_preview_models:Array[Dictionary]=[]
@@ -458,7 +460,7 @@ func stop_primary_music()->void:
 	expedition_music.stop();expedition_music.volume_db=0.0
 
 func is_base_camp_screen(screen_name:String)->bool:
-	return screen_name in ["camp","inventory","spice_workshop","cooking","cook_result","recipes","all_quiblets","edit_quiblet","team","training","item_use"]
+	return screen_name in ["camp","inventory","spice_workshop","stone_recycler","cooking","cook_result","recipes","all_quiblets","edit_quiblet","team","training","item_use"]
 
 func is_expedition_music_screen(screen_name:String)->bool:
 	return screen_name in ["map","area_levels","expedition","expedition_changes","expedition_haul"]
@@ -891,7 +893,7 @@ func build_stone_detail(parent:Control)->void:
 			var remove:=add_button(parent,"REMOVE FROM QUIBLET",Vector2(18,163),Vector2(348,34),func(item=data.duplicate(true)):remove_selected_fitted_stone(item),"coral");remove.name="RemoveFittedStone"
 		# Only unfitted inventory stones can be recycled; a fitted stone is inspected in place.
 		if int(data.get("inventory_index",-1))>=0:
-			var recycle:=add_button(parent,"RECYCLE FOR %d INGREDIENTS"%power_stone_recycle_count(stone),Vector2(18,158),Vector2(348,34),func(index=int(data.inventory_index)):request_recycle_power_stone(index),"leaf");recycle.name="RecyclePowerStone"
+			var recycle:=add_button(parent,"RECYCLE POWER STONE",Vector2(18,158),Vector2(348,34),func(index=int(data.inventory_index)):request_recycle_power_stone(index),"leaf");recycle.name="RecyclePowerStone"
 	else:
 		var info:Dictionary=GameData.stone_info(str(data.effect));var icon:=TextureRect.new();icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.custom_minimum_size=Vector2.ZERO;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.texture=load(info.texture);icon.position=Vector2(20,54);icon.size=Vector2(50,50);parent.add_child(icon)
 		var description:=RichTextLabel.new();description.name="StoneDetailDescription";description.text=str(info.desc);description.position=Vector2(82,53);description.size=Vector2(270,96);description.custom_minimum_size=Vector2.ZERO;description.fit_content=false;description.scroll_active=false;description.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;description.add_theme_font_size_override("normal_font_size",11);description.add_theme_color_override("default_color",GameData.COLORS.ink);parent.add_child(description)
@@ -982,14 +984,73 @@ func add_page_navigation(parent:Control,current_page:int,page_count:int,pos:Vect
 func select_inventory_stone(data:Dictionary)->void:
 	selected_inventory_item=data.duplicate(true);show_quiblet_edit()
 
-# Recycling a Power Stone: one ingredient per tier plus one per bonus stat plus
-# one, rolled at the level the stone's tier corresponds to, so a strong or
-# well-rolled stone pays back more and rarer ingredients.
+# Recycling a Power Stone usually returns one ingredient per tier plus one per
+# bonus stat plus one. Each stone independently has a 5% chance to return a
+# spice instead, or a 0.5% chance to return a special item instead.
+const POWER_STONE_RECYCLE_SPECIAL_CHANCE:=.005
+const POWER_STONE_RECYCLE_SPICE_CHANCE:=.05
+const POWER_STONE_RECYCLE_MAX_BATCH:=10
+
 func power_stone_recycle_count(stone:Dictionary)->int:
 	return int(stone.tier)+int(stone.get("bonus_count",stone.get("bonuses",[]).size()))+1
 
-# Recycling destroys the stone, so it asks first: the dialog names the stone, its
-# bonuses, and the ingredient count it pays back.
+func power_stone_recycle_spice_quality(stone:Dictionary)->String:
+	return ["basic","good","good","great","special"][clampi(int(stone.get("tier",1)),1,5)-1]
+
+# Returns one stone's complete payout. outcome_roll_override is kept optional so
+# automated checks can verify all three reward paths without depending on luck.
+func power_stone_recycle_rewards(stone_value:Dictionary,outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->Array:
+	var stone:=GameData.normalize_power_stone(stone_value)
+	var outcome_roll:=outcome_roll_override if outcome_roll_override>=0.0 else (rng.randf() if rng!=null else randf())
+	if outcome_roll<POWER_STONE_RECYCLE_SPECIAL_CHANCE:
+		return [{"kind":"special","name":GameData.choose_special_item(rng),"amount":1}]
+	if outcome_roll<POWER_STONE_RECYCLE_SPECIAL_CHANCE+POWER_STONE_RECYCLE_SPICE_CHANCE:
+		var spice_names:=GameData.SPICES.keys();var spice_name:String=str(spice_names[rng.randi_range(0,spice_names.size()-1) if rng!=null else randi_range(0,spice_names.size()-1)])
+		return [{"kind":"spice","name":spice_name,"quality":power_stone_recycle_spice_quality(stone),"amount":1}]
+	var power_range:Vector2i=GameData.POWER_STONE_RANGES[int(stone.tier)-1];var level:=maxi(1,int((power_range.x+power_range.y)/2)/6)
+	var rewards:Array=[]
+	for i in power_stone_recycle_count(stone):rewards.append({"kind":"ingredient","name":GameData.roll_ingredient(level,[],rng),"amount":1})
+	return rewards
+
+func aggregate_recycle_rewards(rewards:Array)->Array[Dictionary]:
+	var result:Array[Dictionary]=[];var positions:={}
+	for raw_reward in rewards:
+		var reward:Dictionary=raw_reward
+		var key:="%s|%s|%s"%[str(reward.get("kind","")),str(reward.get("name","")),str(reward.get("quality",""))]
+		if positions.has(key):
+			var index:int=int(positions[key]);result[index].amount=int(result[index].get("amount",1))+int(reward.get("amount",1))
+		else:
+			positions[key]=result.size();result.append(reward.duplicate(true))
+	return result
+
+func grant_recycle_reward(reward:Dictionary)->void:
+	var amount:=int(reward.get("amount",1));var reward_name:=str(reward.get("name",""))
+	match str(reward.get("kind","")):
+		"ingredient":grant_ingredient(reward_name,amount)
+		"spice":
+			var quality:=str(reward.get("quality","basic"))
+			if GameData.SPICES.has(reward_name) and GameData.SPICE_QUALITIES.has(quality):
+				spice_inventory[reward_name][quality]=int(spice_inventory[reward_name].get(quality,0))+amount
+				if not unlocked_spices.has(reward_name):unlocked_spices.append(reward_name)
+		"special":
+			if special_items.has(reward_name):special_items[reward_name]=int(special_items[reward_name])+amount
+
+func consume_recycled_power_stones(indices:Array,outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->Array[Dictionary]:
+	var valid_indices:Array[int]=[]
+	for raw_index in indices:
+		var index:=int(raw_index)
+		if index>=0 and index<power_stone_inventory.size() and not valid_indices.has(index):valid_indices.append(index)
+	valid_indices.sort();valid_indices.reverse()
+	var rewards:Array=[]
+	for index in valid_indices:
+		var stone:=GameData.normalize_power_stone(power_stone_inventory[index])
+		rewards.append_array(power_stone_recycle_rewards(stone,outcome_roll_override,rng));power_stone_inventory.remove_at(index)
+	var aggregated:=aggregate_recycle_rewards(rewards)
+	for reward in aggregated:grant_recycle_reward(reward)
+	return aggregated
+
+# Recycling destroys the stone, so it asks first and explains the alternate-drop
+# chances before changing the inventory.
 func request_recycle_power_stone(inventory_index:int)->void:
 	if inventory_index<0 or inventory_index>=power_stone_inventory.size():toast("That stone is no longer in the inventory.",GameData.COLORS.coral);return
 	if content.find_child("RecycleStoneConfirmation",true,false)!=null:return
@@ -1002,22 +1063,110 @@ func request_recycle_power_stone(inventory_index:int)->void:
 	var lines:Array[String]=[]
 	for bonus in stone.bonuses:lines.append(GameData.bonus_description(bonus))
 	label(menu,"; ".join(lines) if not lines.is_empty() else "No bonus stats.",Vector2(118,102),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,380)
-	label(menu,"The stone is destroyed and pays back %d ingredients rolled at its tier's level."%power_stone_recycle_count(stone),Vector2(42,160),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,456)
+	label(menu,"Usually returns %d ingredients. It can instead give a spice (5%%) or special item (0.5%%)."%power_stone_recycle_count(stone),Vector2(42,153),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,456)
 	var cancel:=add_button(menu,"KEEP IT",Vector2(45,211),Vector2(205,54),shade.queue_free,"plain");cancel.name="CancelRecycleStone"
 	var confirm:=add_button(menu,"RECYCLE",Vector2(270,211),Vector2(225,54),func():shade.queue_free();recycle_power_stone(inventory_index),"coral");confirm.name="ConfirmRecycleStone"
 
-func recycle_power_stone(inventory_index:int)->void:
+func recycle_power_stone(inventory_index:int,outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->void:
 	if inventory_index<0 or inventory_index>=power_stone_inventory.size():toast("That stone is no longer in the inventory.",GameData.COLORS.coral);return
 	var stone:=GameData.normalize_power_stone(power_stone_inventory[inventory_index])
 	var selected:=selected_inventory_item
 	if int(selected.get("inventory_index",-1))!=inventory_index or int(selected.get("power",-1))!=int(stone.power) or str(selected.get("type",""))!=str(stone.type):toast("Select the stone again before recycling it.",GameData.COLORS.coral);return
-	power_stone_inventory.remove_at(inventory_index)
-	var power_range:Vector2i=GameData.POWER_STONE_RANGES[int(stone.tier)-1];var level:=maxi(1,int((power_range.x+power_range.y)/2)/6)
-	var found:Array[String]=[]
-	for i in power_stone_recycle_count(stone):
-		var ingredient:=GameData.roll_ingredient(level);grant_ingredient(ingredient,1);found.append(ingredient)
-	selected_inventory_item={};show_quiblet_edit()
-	toast("Recycled the %s %s stone into: %s"%[stone.quality,stone.type,", ".join(found)],GameData.COLORS.leaf)
+	var rewards:=consume_recycled_power_stones([inventory_index],outcome_roll_override,rng)
+	selected_inventory_item={};last_recycle_rewards=rewards;show_quiblet_edit();show_recycle_reward_flashes(rewards)
+	toast("Recycled the %s %s stone into %s."%[stone.quality,stone.type,recycle_reward_summary(rewards)],GameData.COLORS.leaf)
+
+func recycle_reward_name(reward:Dictionary)->String:
+	if str(reward.get("kind",""))=="spice":return "%s %s"%[str(reward.get("quality","basic")).capitalize(),str(reward.get("name","Spice"))]
+	return str(reward.get("name","Reward"))
+
+func recycle_reward_summary(rewards:Array)->String:
+	var parts:Array[String]=[]
+	for reward in rewards:parts.append("%s ×%d"%[recycle_reward_name(reward),int(reward.get("amount",1))])
+	return ", ".join(parts)
+
+func begin_stone_recycler()->void:
+	stone_recycler_selected.clear();last_recycle_rewards.clear();show_stone_recycler()
+
+func recycler_selected_stones()->Array:
+	var stones:Array=[]
+	for index in stone_recycler_selected:
+		if index>=0 and index<power_stone_inventory.size():stones.append(GameData.normalize_power_stone(power_stone_inventory[index]))
+	return stones
+
+func toggle_recycler_stone(index:int)->void:
+	if index<0 or index>=power_stone_inventory.size():return
+	if stone_recycler_selected.has(index):stone_recycler_selected.erase(index)
+	elif stone_recycler_selected.size()>=POWER_STONE_RECYCLE_MAX_BATCH:
+		toast("Choose at most %d Power Stones at once."%POWER_STONE_RECYCLE_MAX_BATCH,GameData.COLORS.coral);return
+	else:stone_recycler_selected.append(index)
+	last_recycle_rewards.clear();show_stone_recycler()
+
+func recycler_normal_ingredient_total()->int:
+	var total:=0
+	for stone in recycler_selected_stones():total+=power_stone_recycle_count(stone)
+	return total
+
+func show_stone_recycler()->void:
+	screen="stone_recycler";clear_content();add_menu_backdrop()
+	stone_recycler_selected=stone_recycler_selected.filter(func(index):return int(index)>=0 and int(index)<power_stone_inventory.size())
+	var left:=panel(Rect2(30,68,585,624),Color("#fffaf0"),18);left.name="StoneRecycler";content.add_child(left)
+	label(left,"POWER STONE RECYCLER",Vector2(22,14),20,GameData.COLORS.ink,true)
+	label(left,"Tap up to 10 unfitted stones. Selected stones have a green border.",Vector2(22,46),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,540)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecyclerStoneScroll");scroll.position=Vector2(16,82);scroll.size=Vector2(552,524);left.add_child(scroll)
+	var grid:=GridContainer.new();grid.name="RecyclerGrid";grid.columns=6;grid.add_theme_constant_override("h_separation",10);grid.add_theme_constant_override("v_separation",10);scroll.add_child(grid)
+	var entries:=all_power_stone_entries().filter(func(entry):return not bool(entry.get("fitted",false)))
+	for data in entries:
+		var index:=int(data.inventory_index);var chosen:=stone_recycler_selected.has(index)
+		var card:=STONE_CARD_SCRIPT.new();card.name="RecyclerStone%d"%index;card.custom_minimum_size=Vector2(80,80);card.size=Vector2(80,80)
+		var style:=StyleBoxFlat.new();style.bg_color=Color("#e3f5e6") if chosen else Color.WHITE;style.border_color=GameData.COLORS.leaf if chosen else Color("#d4ddd5");style.set_border_width_all(3 if chosen else 1);style.set_corner_radius_all(11);card.add_theme_stylebox_override("panel",style)
+		grid.add_child(card);card.setup(data);card.chosen.connect(func(picked):toggle_recycler_stone(int(picked.inventory_index)));add_power_stone_icon(card,data,Vector2(8,8),Vector2(64,64))
+	if entries.is_empty():label(scroll,"No unfitted Power Stones are available.",Vector2.ZERO,14,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,540)
+	var right:=panel(Rect2(635,68,615,624),Color("#f7f3ff"),18);right.name="RecyclerDetail";content.add_child(right)
+	build_stone_recycler_detail(right)
+	add_back_button(content,BACK_BUTTON_POSITION,show_resources)
+
+func build_stone_recycler_detail(parent:Control)->void:
+	label(parent,"SELECTED  %d / %d"%[stone_recycler_selected.size(),POWER_STONE_RECYCLE_MAX_BATCH],Vector2(22,16),20,GameData.COLORS.ink,true)
+	label(parent,"Each stone rolls separately: 0.5% special item • 5% spice • otherwise ingredients. Higher-tier stones produce better spice and ingredient rewards.",Vector2(22,48),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,571)
+	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"RecyclerDetailScroll");scroll.position=Vector2(22,112);scroll.size=Vector2(571,354);parent.add_child(scroll)
+	var rows:=VBoxContainer.new();rows.name="RecyclerRows";rows.custom_minimum_size=Vector2(571,0);rows.add_theme_constant_override("separation",6);scroll.add_child(rows)
+	var stones:=recycler_selected_stones()
+	if not stones.is_empty():
+		for stone in stones:add_workshop_stone_row(rows,stone,"RECYCLE","RecyclerSelection")
+	elif not last_recycle_rewards.is_empty():
+		label(rows,"RECEIVED",Vector2.ZERO,14,GameData.COLORS.berry,true)
+		for reward in last_recycle_rewards:add_recycler_reward_row(rows,reward)
+	else:label(rows,"Choose one or more stones on the left.",Vector2.ZERO,15,GameData.COLORS.muted)
+	var normal_total:=recycler_normal_ingredient_total()
+	var preview_text:="Usually returns %d ingredients total; a spice or special replaces one stone's ingredient payout."%normal_total if not stones.is_empty() else ("Last recycle: %s"%recycle_reward_summary(last_recycle_rewards) if not last_recycle_rewards.is_empty() else "No stones selected.")
+	var preview:=label(parent,preview_text,Vector2(22,478),13,GameData.COLORS.ink,false,HORIZONTAL_ALIGNMENT_LEFT,571);preview.name="RecyclerPreview"
+	var clear:=add_button(parent,"CLEAR",Vector2(22,548),Vector2(150,54),func():stone_recycler_selected.clear();last_recycle_rewards.clear();show_stone_recycler(),"plain");clear.name="ClearRecyclerSelection";clear.disabled=stones.is_empty() and last_recycle_rewards.is_empty()
+	var apply:=add_button(parent,"RECYCLE %d STONE%s"%[stones.size(),"" if stones.size()==1 else "S"],Vector2(188,548),Vector2(405,54),request_recycle_selected_power_stones,"coral");apply.name="RecycleSelectedStones";apply.disabled=stones.is_empty()
+
+func add_recycler_reward_row(parent:Node,reward:Dictionary)->void:
+	var row:=panel(Rect2(0,0,571,54),Color.WHITE,10);row.custom_minimum_size=Vector2(571,54);row.name="RecyclerRewardRow%d"%parent.get_child_count();parent.add_child(row)
+	add_reward_icon(row,reward,Vector2(8,5),Vector2(44,44))
+	label(row,recycle_reward_name(reward),Vector2(64,8),14,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,390)
+	label(row,"× %d"%int(reward.get("amount",1)),Vector2(480,10),14,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_RIGHT,70)
+
+func request_recycle_selected_power_stones()->void:
+	var stones:=recycler_selected_stones()
+	if stones.is_empty():return
+	if content.find_child("RecycleBatchConfirmation",true,false)!=null:return
+	var shade:=ColorRect.new();shade.name="RecycleBatchConfirmation";shade.color=Color(0,0,0,.72);shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);shade.mouse_filter=Control.MOUSE_FILTER_STOP;shade.z_index=100;content.add_child(shade)
+	var menu:=panel(Rect2(350,190,580,330),Color("#fffdf7"),20);shade.add_child(menu)
+	label(menu,"RECYCLE %d POWER STONE%s?"%[stones.size(),"" if stones.size()==1 else "S"],Vector2(30,27),25,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,520)
+	label(menu,"This permanently destroys every selected stone.",Vector2(42,79),15,GameData.COLORS.coral,true,HORIZONTAL_ALIGNMENT_CENTER,496)
+	label(menu,"Usually returns %d ingredients total. Each stone can instead give a spice (5%%) or special item (0.5%%)."%recycler_normal_ingredient_total(),Vector2(52,122),13,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,476)
+	var cancel:=add_button(menu,"KEEP THEM",Vector2(45,246),Vector2(225,54),shade.queue_free,"plain");cancel.name="CancelRecycleBatch"
+	var confirm:=add_button(menu,"RECYCLE ALL",Vector2(290,246),Vector2(245,54),func():shade.queue_free();recycle_selected_power_stones(),"coral");confirm.name="ConfirmRecycleBatch"
+
+func recycle_selected_power_stones(outcome_roll_override:float=-1.0,rng:RandomNumberGenerator=null)->void:
+	if stone_recycler_selected.is_empty():return
+	var recycled_count:=stone_recycler_selected.size();var rewards:=consume_recycled_power_stones(stone_recycler_selected,outcome_roll_override,rng)
+	stone_recycler_selected.clear();last_recycle_rewards=rewards;show_stone_recycler();show_recycle_reward_flashes(rewards)
+	toast("Recycled %d Power Stone%s into %s."%[recycled_count,"" if recycled_count==1 else "s",recycle_reward_summary(rewards)],GameData.COLORS.leaf)
 
 func equip_stone_from_inventory(kind:String,primary_index:int,secondary_index:int,data:Dictionary)->void:
 	var q:Dictionary=roster[selected_roster];ensure_quiblet_equipment(q)
@@ -1302,7 +1451,8 @@ func show_resources() -> void:
 	label(right,"SPECIAL ITEMS",Vector2(22,19),18,GameData.COLORS.ink,true)
 	var desc:Dictionary=SPECIAL_ITEM_DESCRIPTIONS
 	var scroll:=touch_scroll(TOUCH_SCROLL_SCRIPT.AXIS_VERTICAL,"SpecialItemScroll"); scroll.position=Vector2(16,58); scroll.size=Vector2(582,436); right.add_child(scroll)
-	var workshop_button:=add_button(right,"STONE WORKSHOP  •  combine, revitalize, convert, reforge",Vector2(16,504),Vector2(582,44),func():show_stone_workshop(),"gold");workshop_button.name="OpenStoneWorkshop"
+	var workshop_button:=add_button(right,"STONE WORKSHOP",Vector2(16,504),Vector2(360,44),func():show_stone_workshop(),"gold");workshop_button.name="OpenStoneWorkshop"
+	var recycler_button:=add_button(right,"RECYCLE STONES",Vector2(388,504),Vector2(210,44),begin_stone_recycler,"leaf");recycler_button.name="OpenStoneRecycler"
 	var vb:=VBoxContainer.new(); vb.custom_minimum_size=Vector2(560,0); vb.add_theme_constant_override("separation",7); scroll.add_child(vb)
 	# Leftover jars are stored per recipe; they live here beside the special items
 	# so a filled jar is visible right after cooking, not only in the Recipe Journal.
@@ -2814,14 +2964,17 @@ func show_expedition_reward(reward:Dictionary,world_position:Vector3)->void:
 			delay.tween_callback(start_reward_pickup.bind(pickup,world_position))
 		reward_pickup_delay+=.12
 
+func add_reward_icon(parent:Node,reward:Dictionary,pos:Vector2,icon_size:Vector2)->Control:
+	if str(reward.get("kind",""))=="ingredient":return add_ingredient_icon(parent,GameData.INGREDIENTS[reward.name],pos,icon_size,roundi(icon_size.y*.64))
+	if str(reward.get("kind",""))=="move_stone":
+		var icon:=TextureRect.new();icon.name="RewardMoveStoneIcon";icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.custom_minimum_size=Vector2.ZERO;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.texture=load(reward.texture);icon.position=pos;icon.size=icon_size;icon.clip_contents=true;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;parent.add_child(icon);return icon
+	if str(reward.get("kind","")) in ["spice","special"]:
+		var glyph:=Label.new();glyph.name="RewardSpiceIcon" if str(reward.kind)=="spice" else "RewardSpecialIcon";glyph.text=str(GameData.SPICES.get(str(reward.get("name","")),{}).get("icon","✦")) if str(reward.kind)=="spice" else "✦";glyph.position=pos;glyph.size=icon_size;glyph.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;glyph.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;glyph.add_theme_font_size_override("font_size",roundi(icon_size.y*.68));glyph.add_theme_color_override("font_color",spice_quality_color(str(reward.get("quality","basic"))) if str(reward.kind)=="spice" else GameData.COLORS.gold);glyph.mouse_filter=Control.MOUSE_FILTER_IGNORE;parent.add_child(glyph);return glyph
+	return add_power_stone_icon(parent,reward,pos,icon_size)
+
 func build_reward_pickup(reward:Dictionary)->Control:
 	var pickup:=Control.new();pickup.size=Vector2(44,44);pickup.name="RewardPickup";pickup.z_index=60;pickup.mouse_filter=Control.MOUSE_FILTER_IGNORE;pickup.visible=false;content.add_child(pickup,true)
-	if reward.kind=="ingredient":add_ingredient_icon(pickup,GameData.INGREDIENTS[reward.name],Vector2.ZERO,Vector2(44,44),28)
-	elif reward.kind=="move_stone":
-		var icon:=TextureRect.new();icon.name="RewardMoveStoneIcon";icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.custom_minimum_size=Vector2.ZERO;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.texture=load(reward.texture);icon.size=Vector2(44,44);icon.clip_contents=true;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;pickup.add_child(icon)
-	elif reward.kind=="special":label(pickup,"✦",Vector2.ZERO,30,GameData.COLORS.gold,true,HORIZONTAL_ALIGNMENT_CENTER,44)
-	else:
-		add_power_stone_icon(pickup,reward,Vector2.ZERO,Vector2(44,44))
+	add_reward_icon(pickup,reward,Vector2.ZERO,Vector2(44,44))
 	var sparkle_level:=GameData.reward_sparkle_level(reward)
 	if sparkle_level>0:
 		# Added after the icon so the stars draw over it; the level-2 halo sits behind via z_index.
@@ -2842,6 +2995,17 @@ func start_reward_pickup(pickup:Control,world_position:Vector3)->void:
 	tween.tween_property(pickup,"position",target,.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(pickup,"scale",Vector2.ONE*.8,.3)
 	tween.tween_callback(pickup.queue_free)
+
+func show_recycle_reward_flashes(rewards:Array)->void:
+	if not is_instance_valid(content):return
+	for reward_index in rewards.size():
+		var reward:Dictionary=rewards[reward_index]
+		var flash:=panel(Rect2(470,360,340,58),Color("#fffdf7"),14);flash.name="RecycleRewardFlash%d"%reward_index;flash.z_index=80;flash.mouse_filter=Control.MOUSE_FILTER_IGNORE;flash.modulate.a=0.0;content.add_child(flash)
+		add_reward_icon(flash,reward,Vector2(8,7),Vector2(44,44))
+		var received:=label(flash,"RECEIVED  %s"%recycle_reward_name(reward),Vector2(62,10),13,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,205);received.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		var amount:=label(flash,"× %d"%int(reward.get("amount",1)),Vector2(270,10),14,GameData.COLORS.berry,true,HORIZONTAL_ALIGNMENT_RIGHT,54);amount.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		var start_y:=flash.position.y+18.0;flash.position.y=start_y
+		var tween:=flash.create_tween();tween.tween_interval(reward_index*.32);tween.tween_property(flash,"modulate:a",1.0,.12);tween.parallel().tween_property(flash,"position:y",start_y-18.0,.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT);tween.tween_interval(.72);tween.tween_property(flash,"position:y",start_y-48.0,.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN);tween.parallel().tween_property(flash,"modulate:a",0.0,.22);tween.tween_callback(flash.queue_free)
 
 func _input(event:InputEvent)->void:
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:camp_pan_dragging=false

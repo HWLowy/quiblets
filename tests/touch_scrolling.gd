@@ -133,6 +133,11 @@ func run() -> void:
 	workshop._input(drag(workshop_start - Vector2(0, 100), Vector2(0, -100), Vector2(0, -800)))
 	check(workshop.scroll_vertical > 0, "The actual Revitalize stone grid should move when its cards are swiped")
 	workshop._input(touch(workshop_start - Vector2(0, 100), false))
+	game.begin_stone_recycler()
+	await process_frame
+	var recycler: TouchScrollContainer = game.content.find_child("RecyclerStoneScroll", true, false)
+	check(recycler != null and recycler.has_scroll_range() and not recycler.get_v_scroll_bar().visible, "The Power Stone Recycler grid should swipe vertically with no visible scrollbar")
+	check(game.content.find_child("RecyclerDetailScroll", true, false) is TouchScrollContainer, "The recycler's selected stones and rewards should use vertical touch scrolling")
 
 	var pause_host := Control.new()
 	root.add_child(pause_host)

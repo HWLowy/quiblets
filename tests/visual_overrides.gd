@@ -21,7 +21,7 @@ func _initialize() -> void:
 		if species_index in [2, 3]:
 			assert(model.find_children("VisualOverrideVineArm*", "MeshInstance3D", true, false).size() == 2, "Spriggle and Frondle need two smooth vine arms")
 		if species_index == 2:
-			assert(model.find_children("*", "MeshInstance3D", true, false).filter(func(part): return part.mesh is BoxMesh).size() >= 3, "Spriggle must retain both original ears while gaining its plant features")
+			assert(model.find_children("*", "MeshInstance3D", true, false).filter(func(part): return part.mesh is BoxMesh).size() == 1, "Spriggle's leaf crown must replace both original ears")
 		if species_index == 5:
 			assert(model.find_children("VisualOverrideBloomiePetal*", "MeshInstance3D", true, false).size() == 6, "Bloomie's flat Healing Bloom hat needs six petals")
 		if species_index in [6, 7]:

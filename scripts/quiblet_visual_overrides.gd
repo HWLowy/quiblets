@@ -17,10 +17,10 @@ static func apply_species_features(model, species: Dictionary) -> bool:
 	match species_name:
 		"Spriggle":
 			var spriggle_leaf: StandardMaterial3D = model.material(species.color.darkened(0.18))
-			leaf_stem_hat(model, spriggle_leaf, 0.78)
-			vine_arms(model, spriggle_leaf, model.accent_material, 0.78)
+			leaf_stem_hat(model, spriggle_leaf, 1.0)
+			vine_arms(model, spriggle_leaf, model.accent_material, 1.0)
 			mark(model, "spriggle_leaf_crown_and_vines")
-			return false # Keep its original ears too.
+			return true # The leaf crown replaces the original ears.
 		"Frondle":
 			var frondle_leaf: StandardMaterial3D = model.material(species.color.darkened(0.20))
 			leaf_stem_hat(model, frondle_leaf, 1.0)
@@ -32,11 +32,11 @@ static func apply_species_features(model, species: Dictionary) -> bool:
 			mark(model, "bloomie_healing_bloom_hat")
 			return true
 		"Sparko":
-			flame_peaks(model, 0.78)
+			flame_peaks(model, 0.95)
 			mark(model, "sparko_flame_crown")
 			return false # Keep its original tail too.
 		"Scorchit":
-			flame_peaks(model, 1.0)
+			flame_peaks(model, 1.18)
 			mark(model, "scorchit_flame_crown")
 			return true
 	return false

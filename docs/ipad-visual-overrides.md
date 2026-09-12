@@ -14,11 +14,11 @@ Status: approved family edition, maintained on `ipad-release` until Brighton rep
 ## Current overrides
 
 - Plip and Swellit: smooth water-drop body.
-- Spriggle: original ears plus a smaller leaf-stem crown and curved vine arms.
+- Spriggle: full leaf-stem crown and curved vine arms in its established leaf colour; the old ears are removed so the crown reads cleanly.
 - Frondle: leaf-stem crown and curved vine arms.
 - Bloomie: flat six-petal Healing Bloom flower hat.
-- Sparko: original tail plus a smaller three-peak flame crown.
-- Scorchit: rounded three-peak flame crown with varied heights.
+- Sparko: original tail plus a larger three-peak flame crown.
+- Scorchit: larger rounded three-peak flame crown with varied heights.
 
 ## Rule when merging Brighton's updates
 

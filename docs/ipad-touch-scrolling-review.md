@@ -23,7 +23,9 @@ active areas:
 6. Use Item: move or stone choices (vertical)
 7. Stone Workshop: stone inventory (vertical)
 8. Stone Workshop: selected-stone details (vertical)
-9. Paused expedition: collected-reward columns (vertical)
+9. Power Stone Recycler: stone inventory (vertical)
+10. Power Stone Recycler: selected stones and received rewards (vertical)
+11. Paused expedition: collected-reward columns (vertical)
 
 There is also an obsolete legacy team screen with a scroll view. It is not
 currently reachable by players and does not need an iPad-specific adjustment.
@@ -44,7 +46,7 @@ currently reachable by players and does not need an iPad-specific adjustment.
 ## Release checklist
 
 1. Run `tests/touch_scrolling.gd` and `tests/smoke.gd`.
-2. Export a fresh Xcode project and test all nine areas on a physical iPad.
+2. Export a fresh Xcode project and test all eleven areas on a physical iPad.
 3. Verify tapping, dragging items, and swiping before publishing the next build.
 
 ## Completion criteria
