@@ -6,7 +6,7 @@ branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
 Last updated: **September 12, 2026**  
-Latest recorded gameplay commit: **`0dc1f2b`**  
+Latest recorded gameplay commit: **`e1b5d03`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -87,7 +87,9 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 
 ### Power Stone experience
 
-- Added a dedicated Power Stone Recycler under Resources.
+- Added the Power Stone Recycler as a fifth tab inside the Stone Workshop, so
+  combining, revitalizing, converting, reforging, and recycling all live in one
+  stone-management destination.
 - Up to ten unfitted stones can be selected and recycled together.
 - Every stone rolls its reward separately; the full combined result remains on
   screen and pickup-style cards flash what was received.
@@ -107,6 +109,23 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 - The Quiblet equipment screen separates Health, Attack, and Move Stones into
   tabs instead of one long mixed list.
 - The previous- and next-page arrows sit together, away from the Back button.
+- Selecting an unfitted Power Stone on a Quiblet now offers **Stone Workshop**
+  instead of a separate recycling action. It opens the Recycler tab with that
+  stone selected, and Back returns to the same Quiblet.
+
+### Navigation and player flow
+
+- Resources' **Go to Cooking** button opens Cooking even while a stew is already
+  underway, where its remaining-expedition status is visible.
+- Cooking has a **Spice Workshop** shortcut. Returning from it preserves the
+  ingredients, spices, and special items already placed in the cooking pot.
+- A finished stew now offers both **Cook Again** and **Inspect Quiblet**. Inspect
+  opens the exact newly arrived Quiblet's stats, moves, and Power Stones; its UID
+  is stored in the completed-stew result so duplicate species cannot confuse the
+  selection.
+- Expedition islands enter their level route on finger-up, not finger-down, and
+  newly created level buttons briefly ignore the remainder of the island
+  gesture or a double-tap. A fresh level selection is always required.
 
 ### Ingredient and scenery balance
 
@@ -196,6 +215,10 @@ affect future training only; they do not reduce levels already earned.
 - **`0dc1f2b` — Rebalance stone recycling and training**  
   Added tier-scaled recycler odds and reduced EXP transfer and helper retention
   to prevent repeated training from overpowering a team.
+- **`e1b5d03` — Connect related workshop and expedition flows**
+  Centralized recycling in the Stone Workshop, connected Cooking and the Spice
+  Workshop, repaired Resources-to-Cooking, added exact arrival inspection, and
+  prevented expedition island taps from spilling into a level.
 
 ## Upstream merge policy
 
@@ -225,6 +248,9 @@ Focused automated checks:
 - `tests/power_stone_recycling.gd` — batch recycling and tier reward boundaries
 - `tests/training.gd` — XP transfer, retention, confirmation, and helper handling
 - `tests/stone_inventory_tabs.gd` — stone filtering, paging, and arrow placement
+- `tests/navigation_flows.gd` — cross-screen workshop, cooking, and arrival
+  inspection routes
+- `tests/areas.gd` — explicit island-to-route-to-level gesture separation
 
 Interactive Godot previews:
 
@@ -236,6 +262,13 @@ Interactive Godot previews:
 Latest verified result on September 12, 2026:
 
 - Power Stone recycling: **19 checks, 0 failures**
+- Stone Workshop: **80 checks, 0 failures**
+- Navigation flows: **7 checks, 0 failures**
+- Expedition areas and routes: **509 checks, 0 failures**
+- Touch scrolling: **20 checks, 0 failures**
+- Cooking quality and flow: **147 checks, 0 failures**
+- Stone inventory tabs: **11 checks, 0 failures**
+- Special items: **103 checks, 0 failures**
 - Training: **71 checks, 0 failures**
 - Full smoke check: **passed**
 
@@ -278,7 +311,7 @@ Latest verified result on September 12, 2026:
 
 ## Next planned release
 
-The next device build should include everything through `0dc1f2b`, followed by
+The next device build should include everything through `e1b5d03`, followed by
 any later commits recorded below this line. Before installing it, repeat the
 physical iPad release checklist rather than reusing an older Godot export or
 Xcode snapshot.
