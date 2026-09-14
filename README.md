@@ -8,7 +8,7 @@ Open `project.godot` in Godot 4.7 and press **Run Project**.
 
 - Start with a single level-6 Plip and explore a low-poly 3D base-camp diorama while managing a team of 1–5 Quiblets, inspecting the always-accessible resources, training, and cooking.
 - Every navigation back button sits in the bottom-right corner of the screen. The Quiblet info and All Quiblets menus draw over a full-screen backdrop.
-- Cooking uses ingredient tags to produce deterministic dishes. Better quality improves arriving Quiblets; leftovers can be recycled or reinvested. Cooking links directly to the Spice Workshop, and a finished dish can either be cooked again or open the newly arrived Quiblet's stats and moves.
+- Cooking uses ingredient tags to produce deterministic dishes. Better quality improves arriving Quiblets; leftovers can be recycled or reinvested. Resources opens the pot when it is available and displays a brief “A stew is already in progress!” notice instead when it is busy. Cooking links directly to the Spice Workshop, and a finished dish can either be cooked again or open the newly arrived Quiblet's stats and moves.
 - Expeditions take place across 3D terrain. Click the ground to direct the whole team.
 - Click the move icons on each Quiblet's card to activate moves manually. Enemies choose their own moves. Every move has an independent cooldown.
 - Pause to inspect collected loot, resume, or **Give Up** and keep what you collected.

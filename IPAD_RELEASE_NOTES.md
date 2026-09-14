@@ -5,8 +5,8 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 12, 2026**  
-Latest recorded gameplay commit: **`e1b5d03`**
+Last updated: **September 13, 2026**
+Latest recorded gameplay commit: **`3758068`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -115,8 +115,10 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 
 ### Navigation and player flow
 
-- Resources' **Go to Cooking** button opens Cooking even while a stew is already
-  underway, where its remaining-expedition status is visible.
+- Resources' **Go to Cooking** button opens the pot when it is available. If a
+  stew is already underway, Resources stays open and a brief coral-accented
+  **A stew is already in progress!** notice explains why the pot cannot be
+  changed.
 - Cooking has a **Spice Workshop** shortcut. Returning from it preserves the
   ingredients, spices, and special items already placed in the cooking pot.
 - A finished stew now offers both **Cook Again** and **Inspect Quiblet**. Inspect
@@ -219,6 +221,9 @@ affect future training only; they do not reduce levels already earned.
   Centralized recycling in the Stone Workshop, connected Cooking and the Spice
   Workshop, repaired Resources-to-Cooking, added exact arrival inspection, and
   prevented expedition island taps from spilling into a level.
+- **`3758068` — Explain when the cooking pot is already busy**
+  Kept Resources open and displayed a small notice when Go to Cooking is used
+  during an active stew, while preserving normal navigation to an idle pot.
 
 ## Upstream merge policy
 
@@ -259,11 +264,11 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 12, 2026:
+Latest verified result on September 13, 2026:
 
 - Power Stone recycling: **19 checks, 0 failures**
 - Stone Workshop: **80 checks, 0 failures**
-- Navigation flows: **7 checks, 0 failures**
+- Navigation flows: **8 checks, 0 failures**
 - Expedition areas and routes: **509 checks, 0 failures**
 - Touch scrolling: **20 checks, 0 failures**
 - Cooking quality and flow: **147 checks, 0 failures**
@@ -311,7 +316,7 @@ Latest verified result on September 12, 2026:
 
 ## Next planned release
 
-The next device build should include everything through `e1b5d03`, followed by
+The next device build should include everything through `3758068`, followed by
 any later commits recorded below this line. Before installing it, repeat the
 physical iPad release checklist rather than reusing an older Godot export or
 Xcode snapshot.
