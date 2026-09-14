@@ -11,14 +11,17 @@ func _initialize()->void:call_deferred("run")
 
 func run()->void:
 	var game=load("res://main.tscn").instantiate();root.add_child(game);await process_frame
-	# Resources always reaches Cooking, even while a stew is already underway.
+	# Resources explains why Cooking cannot be changed while a stew is underway.
 	game.pending_stew={"expeditions_remaining":2};game.show_resources();await process_frame
 	var cooking:Button=game.content.find_child("GoToCooking",true,false)
 	check(cooking!=null,"Resources needs a working Go to Cooking button")
 	cooking.pressed.emit();await process_frame
-	check(game.screen=="cooking","Go to Cooking should open the cooking screen while a stew is underway")
+	var active_notice:Label=game.content.find_child("SmallNoticeText",true,false)
+	check(game.screen=="inventory" and active_notice!=null and active_notice.text=="A stew is already in progress!","Go to Cooking should explain an active stew and remain on Resources")
 	# Cooking and the Spice Workshop form a reversible shortcut without losing pot state.
-	game.pending_stew.clear();game.pot_slots.assign(["Bumbleberry","","","",""]);game.rebuild_pot_from_slots();game.show_cooking();await process_frame
+	game.pending_stew.clear();cooking.pressed.emit();await process_frame
+	check(game.screen=="cooking","Go to Cooking should open the pot when no stew is underway")
+	game.pot_slots.assign(["Bumbleberry","","","",""]);game.rebuild_pot_from_slots();game.show_cooking();await process_frame
 	var spices:Button=game.content.find_child("OpenSpiceWorkshopFromCooking",true,false)
 	check(spices!=null,"Cooking needs a Spice Workshop shortcut")
 	spices.pressed.emit();await process_frame

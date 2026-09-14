@@ -1487,7 +1487,7 @@ func show_resources() -> void:
 			label(card,"Unknown",Vector2(52,13),15,GameData.COLORS.muted,true)
 			label(card,"× 0",Vector2(52,39),19,GameData.COLORS.muted,true)
 	add_button(left,"SPICE WORKSHOP",Vector2(20,493),Vector2(260,50),func():open_spice_workshop("resources"),"gold")
-	var cooking_button:=add_button(left,"GO TO COOKING",Vector2(290,493),Vector2(275,50),show_cooking,"leaf");cooking_button.name="GoToCooking"
+	var cooking_button:=add_button(left,"GO TO COOKING",Vector2(290,493),Vector2(275,50),open_cooking_from_resources,"leaf");cooking_button.name="GoToCooking"
 	var right:=panel(Rect2(635,112,615,565),Color("#f7f3ff"),18); content.add_child(right)
 	label(right,"SPECIAL ITEMS",Vector2(22,19),18,GameData.COLORS.ink,true)
 	var desc:Dictionary=SPECIAL_ITEM_DESCRIPTIONS
@@ -1508,6 +1508,20 @@ func show_resources() -> void:
 		label(row,item,Vector2(14,8),14,GameData.COLORS.ink,true); label(row,str(desc[item])+hint,Vector2(14,29),11,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_LEFT,395); label(row,"× %d"%special_items[item],Vector2(496,15),16,GameData.COLORS.berry,true)
 		if item_use_screen_supported(item):
 			var use:=add_button(row,"USE",Vector2(414,12),Vector2(72,31),func(name=item):show_item_use(name),"gold");use.name="UseSpecialItem";use.disabled=int(special_items[item])<=0
+
+func open_cooking_from_resources()->void:
+	if not pending_stew.is_empty():
+		show_small_notice("A stew is already in progress!",GameData.COLORS.coral)
+		return
+	show_cooking()
+
+func show_small_notice(message:String,color:Color)->void:
+	var existing:=content.find_child("SmallNotice",true,false)
+	if existing!=null:existing.queue_free()
+	var notice:=panel(Rect2(425,42,430,48),Color("#fffdf7"),14);notice.name="SmallNotice";notice.z_index=80;notice.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(notice)
+	var stripe:=ColorRect.new();stripe.color=color;stripe.position=Vector2(0,0);stripe.size=Vector2(8,48);stripe.mouse_filter=Control.MOUSE_FILTER_IGNORE;notice.add_child(stripe)
+	var message_label:=label(notice,message,Vector2(20,7),15,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,390);message_label.name="SmallNoticeText";message_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var tween:=notice.create_tween();tween.tween_interval(2.0);tween.tween_property(notice,"modulate:a",0.0,.25);tween.tween_callback(notice.queue_free)
 
 func show_spice_workshop()->void:
 	screen="spice_workshop";clear_content();make_topbar("SPICE WORKSHOP","Drag up to five resources into the bowl; better resources create stronger seasoning.",false)
