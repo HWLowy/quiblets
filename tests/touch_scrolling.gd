@@ -101,8 +101,8 @@ func run() -> void:
 	game.ingredients.keys().map(func(name): game.unlocked_ingredients.append(name))
 	game.show_resources()
 	await process_frame
-	for name in ["ResourceIngredientScroll", "SpecialItemScroll"]:
-		check(game.content.find_child(name, true, false) is TouchScrollContainer, "%s should use iPad touch scrolling" % name)
+	check(game.content.find_child("ResourceIngredientScroll",true,false)==null and game.content.find_child("SpecialItemScroll",true,false)==null,"Bright's compact Resources redesign should avoid scrollbars when every item fits on screen")
+	check(game.content.find_children("*","IngredientDragCard",true,false).size()==GameData.INGREDIENTS.size(),"The fixed Resources grid should still expose every ingredient without scrolling")
 	for spice_name in game.spice_inventory:
 		for quality in game.spice_inventory[spice_name]: game.spice_inventory[spice_name][quality] = 1
 	game.show_cooking()

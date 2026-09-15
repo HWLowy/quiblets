@@ -28,13 +28,11 @@ func run()->void:
 	check(game.screen=="spice_workshop" and game.pot_slots[0]=="Bumbleberry","The Spice Workshop shortcut should preserve the cooking pot")
 	game.leave_spice_workshop();await process_frame
 	check(game.screen=="cooking" and game.pot_slots[0]=="Bumbleberry","Leaving the Spice Workshop should return to the preserved Cooking screen")
-	# The result screen can open the exact newly arrived Quiblet.
+	# Bright's animated arrival sequence receives the exact newly arrived Quiblet;
+	# its full replica card shows the same stats, moves, and equipment as Inspect did.
 	var arrival:=GameData.make_quiblet(5,12,"New Bloomie",true);game.roster.append(arrival)
 	game.completed_stew_result={"recipe":"Plain Stew","quality":"Decent","arrivals":["New Bloomie Lv.12"],"arrival_species":[5],"arrival_uids":[arrival.uid],"leftovers":0}
 	game.show_cook_result();await process_frame
-	var inspect:Button=game.content.find_child("InspectCookedQuiblet",true,false)
-	check(inspect!=null and game.content.find_child("CookAgain",true,false)!=null,"The cooking result needs both Cook Again and Inspect Quiblet")
-	inspect.pressed.emit();await process_frame
-	check(game.screen=="edit_quiblet" and game.roster[game.selected_roster].uid==arrival.uid and game.completed_stew_result.is_empty(),"Inspect Quiblet should open the exact arrival's stats and moves")
+	check(game.screen=="quiblet_arrival" and is_instance_valid(game.arrival_sequence) and game.arrival_sequence.arrivals.size()==1 and game.arrival_sequence.arrivals[0].uid==arrival.uid,"The animated result should reveal the exact newly arrived Quiblet")
 	print("QUIBLETS_NAVIGATION_FLOWS_OK checks=%d failures=%d"%[checks,failures])
 	quit(0 if failures==0 else 1)

@@ -49,18 +49,13 @@ func run()->void:
 	check(tier_share(early_berries,[3,4])<.08,"Early berry patches should rarely hold Frostberry or Sunplum")
 	check(tier_share(late_berries,[3,4])>.4,"Late berry patches should hold rare berries about as often as common ones")
 	check(early_berries.keys().all(func(name):return name in berries),"Berry patches must only pick from the berry list")
-	# Destroyed scenery has a sparse, explicit distribution. Berry Groves improve
-	# each reward band, and successful drops roll four effective levels higher.
-	var field_drop_counts:={0:0,1:0,2:0,3:0};var grove_drop_counts:={0:0,1:0,2:0,3:0}
+	# Brighton's scenery system first decides whether a prop bears fruit. Plain
+	# scenery drops nothing; fruit-bearing props give a small bundle when broken.
 	var field:=Expedition3D.new();field.stage_kind="level";root.add_child(field)
 	var grove:=Expedition3D.new();grove.stage_kind="berry_grove";root.add_child(grove)
-	for roll_index in 10000:
-		var fixed_roll:=(float(roll_index)+.5)/10000.0
-		var field_amount:=field.prop_break_amount(fixed_roll);field_drop_counts[field_amount]=int(field_drop_counts[field_amount])+1
-		var grove_amount:=grove.prop_break_amount(fixed_roll);grove_drop_counts[grove_amount]=int(grove_drop_counts[grove_amount])+1
-	check(field_drop_counts=={0:6000,1:2500,2:1000,3:500},"Regular scenery drops should be 60% none, 25% one, 10% two, and 5% three")
-	check(grove_drop_counts=={0:4500,1:3000,2:1500,3:1000},"Berry Grove scenery drops should be 45% none, 30% one, 15% two, and 10% three")
-	check(field.BREAK_DROP_TIER_LEVEL_BONUS==4 and GameData.INGREDIENTS.keys().any(func(name):return GameData.ingredient_drop_weight(name,8+field.BREAK_DROP_TIER_LEVEL_BONUS)>GameData.ingredient_drop_weight(name,8)),"Successful scenery drops should have a modest higher-tier bias")
+	check(field.BREAK_BUNDLE_RANGE==Vector2i(1,2) and field.HARVEST_BUNDLE_RANGE==Vector2i(2,4) and field.RICH_YIELD==Vector2i(5,8),"Broken, harvested, and rich props should use Brighton's small, medium, and exciting bundle sizes")
+	check(is_equal_approx(field.REGULAR_HARVEST_CHANCE,.32) and is_equal_approx(field.GROVE_HARVEST_CHANCE,.9) and is_equal_approx(field.REGULAR_RICH_CHANCE,.06) and is_equal_approx(field.GROVE_RICH_CHANCE,.16),"Berry Groves should be much more likely to contain fruit-bearing and rich props")
+	check(field.GROVE_INGREDIENT_LEVEL_BONUS==8 and GameData.INGREDIENTS.keys().any(func(name):return GameData.ingredient_drop_weight(name,8+field.GROVE_INGREDIENT_LEVEL_BONUS)>GameData.ingredient_drop_weight(name,8)),"Grove and rich props should lean toward higher-tier ingredients")
 	field.free();grove.free()
 	# Exercise the real defeat handler and berry placement, not only the helper.
 	seed(20931)

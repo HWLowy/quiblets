@@ -69,6 +69,21 @@ func run()->void:
 	check(picks.size()==pool.size() and int(picks[pool[0]])>int(picks[pool[-1]]) and GameData.move_selection_weight(2,pool[-1])<GameData.move_selection_weight(2,pool[0]),"Later learnset moves are picked less often but remain possible")
 	# Screens: backdrops, back buttons, and the training button.
 	var game=load("res://main.tscn").instantiate();root.add_child(game);await process_frame
+	# Evolution: a base species that reaches its evolve level becomes its evolved form.
+	check(GameData.evolution_target(0,17)==-1 and GameData.evolution_target(0,18)==1 and GameData.evolution_target(1,50)==-1,"Plip evolves into Swellit at Lv. 18; Swellit does not evolve")
+	var evo:Dictionary=GameData.make_quiblet(0,17,"Bubbles");var evo_stones:Array=evo.moves.duplicate(true)
+	game.grant_training_exp(evo,GameData.exp_to_level(17)-int(evo.exp))
+	check(int(evo.level)>=18 and int(evo.species)==1 and str(evo.nickname)=="Bubbles" and evo.moves==evo_stones,"Leveling a Plip to 18 turns it into Swellit, keeping its nickname and moves")
+	var late:Dictionary=GameData.make_quiblet(6,10)
+	game.grant_training_exp(late,GameData.total_exp(GameData.make_quiblet(6,17))-GameData.total_exp(late))
+	check(int(late.species)==6,"A Sparko below Lv. 18 stays a Sparko")
+	# Pausing evolution keeps a Quiblet in its current form even past the evolve level.
+	check(GameData.can_evolve(0) and not GameData.can_evolve(1),"A base species can evolve; its evolved form cannot")
+	var held:Dictionary=GameData.make_quiblet(0,17);held.evolution_paused=true
+	game.grant_training_exp(held,GameData.exp_to_level(17)-int(held.exp))
+	check(int(held.level)>=18 and int(held.species)==0,"A Quiblet with evolution paused does not evolve on level-up")
+	held.evolution_paused=false;game.grant_training_exp(held,GameData.exp_to_level(int(held.level))-int(held.exp))
+	check(int(held.species)==1,"Re-allowing evolution lets it evolve on the next level-up")
 	game.show_all_quiblets();await process_frame
 	check(backdrop_ok(game),"All Quiblets needs a full-screen backdrop")
 	var info:Control=game.content.find_child("QuibletInfo",false,false);var list_panel:Control=game.content.find_child("OwnedQuiblets",false,false);var open_training:TextureButton=game.content.find_child("OpenTrainingButton",false,false)
@@ -84,8 +99,9 @@ func run()->void:
 	game.show_resources();await process_frame;check(back_buttons_bottom_right(game),"Resources back button placement")
 	game.show_spice_workshop();await process_frame;check(back_buttons_bottom_right(game),"Spice workshop back button placement")
 	game.show_cooking();await process_frame;check(back_buttons_bottom_right(game),"Cooking back button placement")
-	game.completed_stew_result={"recipe":"Plain Stew","quality":"Decent","arrivals":["Plip"],"arrival_names":["Plip"],"arrival_species":[0],"leftovers":0}
-	game.show_cook_result();await process_frame;check(back_buttons_bottom_right(game),"Cook result back button placement");game.completed_stew_result={}
+	var arrival:=GameData.make_quiblet(0,6,"Test Arrival",true);game.roster.append(arrival)
+	game.completed_stew_result={"recipe":"Plain Stew","quality":"Decent","arrivals":["Plip"],"arrival_names":["Plip"],"arrival_species":[0],"arrival_uids":[arrival.uid],"leftovers":0}
+	game.show_cook_result();await process_frame;check(game.screen=="quiblet_arrival" and is_instance_valid(game.arrival_sequence),"Cook results should use Bright's animated arrival sequence");game.arrival_sequence.queue_free();game.arrival_sequence=null;game.completed_stew_result={}
 	game.last_result={"victory":true,"exp":10,"loot":{},"berries":0,"special":""}
 	game.show_expedition_result();await process_frame;check(back_buttons_bottom_right(game),"Expedition result back button placement")
 	game.show_area_levels(0);await process_frame;check(back_buttons_bottom_right(game),"Level route back button placement")

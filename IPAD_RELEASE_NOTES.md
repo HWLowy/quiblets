@@ -5,8 +5,8 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 13, 2026**
-Latest recorded gameplay commit: **`3758068`**
+Last updated: **September 14, 2026**
+Latest integrated upstream commit: **`d44b97b`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -70,16 +70,21 @@ Detailed scrolling coverage and retest criteria live in
 
 ### Maintained Quiblet designs
 
-The following approved model details are intentionally maintained on this
-branch until Brighton adopts or replaces them:
+Brighton's supplied artwork and imported 3D models now take precedence. The
+following family-edition details remain as fallbacks only where Brighton has
+not supplied a replacement:
 
-- **Plip and Swellit:** smooth water-drop silhouette.
+- **Plip:** Brighton's imported model, with the family water-drop portrait as
+  a fallback where no supplied icon is available.
+- **Swellit:** smooth family-edition water-drop silhouette and portrait.
 - **Spriggle:** leaf-stem crown, curved vine arms, and removal of the old horns.
 - **Frondle:** leaf-stem crown and smooth curved vine arms.
-- **Bloomie:** flat six-petal Healing Bloom flower hat.
+- **Bloomie:** Brighton's imported flower-hat model and supplied portrait.
 - **Sparko:** larger three-height flame crown while retaining its tail.
 - **Scorchit:** larger rounded three-height flame crown blended into its body.
-- The small in-game portraits mirror these model features.
+- **Blubber:** Brighton's imported hovering model.
+- Brighton's supplied Bloomie, Frondle, and Spriggle portraits take precedence;
+  procedural portraits remain available for species without supplied icons.
 
 The procedural geometry is isolated in
 `scripts/quiblet_visual_overrides.gd`. Full preservation instructions and
@@ -121,27 +126,23 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
   changed.
 - Cooking has a **Spice Workshop** shortcut. Returning from it preserves the
   ingredients, spices, and special items already placed in the cooking pot.
-- A finished stew now offers both **Cook Again** and **Inspect Quiblet**. Inspect
-  opens the exact newly arrived Quiblet's stats, moves, and Power Stones; its UID
-  is stored in the completed-stew result so duplicate species cannot confuse the
-  selection.
+- A finished stew now uses Brighton's animated arrival sequence. Each exact new
+  Quiblet walks into camp and its full stats, moves, and Power Stones appear
+  during the reveal; saved UIDs prevent duplicate species from being confused.
 - Expedition islands enter their level route on finger-up, not finger-down, and
   newly created level buttons briefly ignore the remainder of the island
   gesture or a double-tap. A fresh level selection is always required.
 
 ### Ingredient and scenery balance
 
-Destroying trees, bushes, rocks, and other harvestable scenery with area attacks
-is no longer a dependable source of large ingredient stacks.
-
-| Scenery type | Nothing | 1 item | 2 items | 3 items |
-| --- | ---: | ---: | ---: | ---: |
-| Ordinary expedition scenery | 60% | 25% | 10% | 5% |
-| Berry Grove scenery | 45% | 30% | 15% | 10% |
-
-A successful scenery drop is rolled as though the stage were four levels
-higher, preserving the excitement of finding a slightly better ingredient.
-Deliberately harvesting a feature still provides the richer harvest payout.
+Brighton's new scenery system replaces the earlier exact 25%/10%/5% family
+table. In ordinary expeditions about 32% of props bear fruit, while about 90%
+do in Berry Groves; breaking a fruit-bearing prop yields 1–2 items and plain
+scenery yields nothing. Deliberate harvesting yields 2–4 items. About 6% of
+ordinary harvestable props and 16% of Grove props are rich, yielding 5–8 items.
+Grove and rich rewards roll as though the stage were eight levels deeper, so
+valuable gathering spots can produce more exciting ingredients without making
+radius attacks a dependable farming shortcut.
 
 ### Training balance
 
@@ -225,6 +226,21 @@ affect future training only; they do not reduce levels already earned.
   Kept Resources open and displayed a small notice when Go to Cooking is used
   during an active stew, while preserving normal navigation to an idle pot.
 
+### September 14, 2026
+
+- **`d44b97b` upstream — Expand camp and expeditions, improve Quiblet behavior
+  and menus, and protect saves**
+  Integrated Brighton's latest models, portraits, animated arrival sequence,
+  compact Resources and cooking menus, six-column stone tabs, Combiner Charm,
+  revitalizer variation, larger expedition fields, bridge and movement work,
+  richer Grove gathering, camp behavior, and explicit test-save protections.
+- **Family-edition merge resolution — this merge commit**
+  Gave Brighton's replacements priority while preserving iPad swipe scrolling,
+  paired stone-page arrows, the five-mode Workshop and batch Recycler, tiered
+  recycler rewards, reduced training gains and retention, cooking/workshop
+  shortcuts, the active-stew notice, explicit level selection, iOS settings,
+  fallback creature refinements, and save compatibility.
+
 ## Upstream merge policy
 
 When Brighton pushes new work:
@@ -264,17 +280,16 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 13, 2026:
+Latest verified result on September 14, 2026:
 
 - Power Stone recycling: **19 checks, 0 failures**
-- Stone Workshop: **80 checks, 0 failures**
-- Navigation flows: **8 checks, 0 failures**
-- Expedition areas and routes: **509 checks, 0 failures**
+- Stone Workshop: **85 checks, 0 failures**
+- Navigation flows: **7 checks, 0 failures**
 - Touch scrolling: **20 checks, 0 failures**
-- Cooking quality and flow: **147 checks, 0 failures**
 - Stone inventory tabs: **11 checks, 0 failures**
-- Special items: **103 checks, 0 failures**
-- Training: **71 checks, 0 failures**
+- Menu updates: **7,494 checks, 0 failures**
+- Animated arrivals: **passed**
+- Training: **77 checks, 0 failures**
 - Full smoke check: **passed**
 
 ## Physical iPad release checklist
@@ -316,10 +331,10 @@ Latest verified result on September 13, 2026:
 
 ## Next planned release
 
-The next device build should include everything through `3758068`, followed by
-any later commits recorded below this line. Before installing it, repeat the
-physical iPad release checklist rather than reusing an older Godot export or
-Xcode snapshot.
+The next device build should include Brighton's upstream commit `d44b97b` and
+the September 14 family-edition merge resolution. Before installing it, repeat
+the physical iPad release checklist rather than reusing an older Godot export
+or Xcode snapshot.
 
 Future entries should record the date, commit, reason for the change, exact
 player-visible behavior, important values or decisions, tests performed, and
