@@ -26,6 +26,9 @@ var model_stretch:=Vector3.ONE
 # Extra visual height (the spawn drop animates this); added to the model's
 # position every status tick alongside the launch status.
 var model_lift:=0.0
+const WALK_PHASE_SPEED:=10.0 # Camp uses 8.0.
+var walk_phase:=0.0
+var walk_bob:=0.0
 # Remaining waypoints after desired_point when following a routed path.
 var command_path:Array[Vector3]=[]
 var has_command := false
@@ -74,6 +77,25 @@ func setup(q: Dictionary, is_enemy := false, level_boost := 0, team_slot := -1, 
 	if enemy:model.rotation.y=PI
 
 func _physics_process(delta: float) -> void:
+	var before:=position
+	process_actor_physics(delta)
+	update_player_walk_animation(delta,horizontal_distance(before,position))
+
+func update_player_walk_animation(delta:float,distance:float)->void:
+	if enemy or not is_instance_valid(model) or knocked_out or current_hp<=0:return
+	var base_height:=model.position.y
+	var walking:=distance>delta*.05 and not floats_over_water() and not movement_locked() and motion_lock<=0 and recover_time<=0 and is_zero_approx(model_lift)
+	if walking:
+		walk_phase+=delta*WALK_PHASE_SPEED
+		model.animate_walking(walk_phase,.055,.035)
+		walk_bob=model.position.y
+	else:
+		walk_bob=lerpf(walk_bob,0.0,minf(1.0,delta*12.0))
+		model.rotation.z=lerpf(model.rotation.z,0.0,minf(1.0,delta*12.0))
+	# Launch and spawn animations retain their own height; only the mesh bobs.
+	model.position.y=base_height+walk_bob
+
+func process_actor_physics(delta: float) -> void:
 	if is_instance_valid(team_ring):team_ring.follow_facing(model)
 	if knocked_out:
 		revive_time=maxf(0.0,revive_time-delta)
@@ -347,7 +369,7 @@ func begin_knockout()->void:
 
 func revive_from_knockout()->void:
 	if not knocked_out:return
-	knocked_out=false;current_hp=max_hp*.5;revive_time=0.0;model.scale=Vector3.ONE*.78
+	knocked_out=false;current_hp=max_hp*.5;revive_time=0.0;model.scale=Vector3.ONE*.78*QuibletModel3D.SIZE_MULTIPLIER
 	if is_instance_valid(team_ring):team_ring.visible=true
 	var tween:=create_tween();tween.set_parallel(true);tween.tween_property(model,"rotation:x",0.0,.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT);tween.tween_property(model,"position:y",.35,.14);tween.tween_property(model,"scale",Vector3.ONE*1.08,.18)
 	tween.set_parallel(false);tween.tween_property(model,"position:y",0.0,.12);tween.parallel().tween_property(model,"scale",Vector3.ONE,.12);tween.tween_callback(func():revived.emit(self))
@@ -401,7 +423,7 @@ func update_statuses(delta:float)->void:
 		status.time-=delta
 		if status.time<=0:statuses.erase(kind)
 	if is_instance_valid(model) and current_hp>0:
-		model.scale=Vector3.ONE*.82*(float(statuses.growth.amount) if statuses.has("growth") else 1.0)*model_stretch
+		model.scale=Vector3.ONE*.82*QuibletModel3D.SIZE_MULTIPLIER*(float(statuses.growth.amount) if statuses.has("growth") else 1.0)*model_stretch
 		model.position.y=(sin(PI*(1.0-float(statuses.launch.time)/float(statuses.launch.total)))*float(statuses.launch.amount) if statuses.has("launch") else 0.0)+model_lift
 	update_status_visual()
 
@@ -461,3 +483,19 @@ func update_status_visual()->void:
 			"haste","hasten":tint=Color(.95,.9,.4,.4)
 			"weaken":tint=Color(.6,.55,.5,.4)
 	status_visual.material_override.albedo_color=tint
+
+var exclamation_icon:Sprite3D
+var exclamation_tween:Tween
+func show_exclamation()->void:
+	if not is_inside_tree():return
+	if is_instance_valid(exclamation_icon):exclamation_icon.queue_free()
+	if exclamation_tween!=null and exclamation_tween.is_valid():exclamation_tween.kill()
+	exclamation_icon=Sprite3D.new();exclamation_icon.name="ExclamationIcon";exclamation_icon.texture=preload("res://textures/UI/ExclaimIcon.png")
+	exclamation_icon.billboard=BaseMaterial3D.BILLBOARD_ENABLED;exclamation_icon.no_depth_test=true;exclamation_icon.pixel_size=.004
+	var height:=2.3
+	if is_instance_valid(model):
+		var bounds:AABB=model.transform*model.combined_aabb(model)
+		height=maxf(1.0,bounds.end.y+.45)
+	exclamation_icon.position=Vector3(0,height,0);add_child(exclamation_icon);exclamation_icon.scale=Vector3.ONE*.3
+	exclamation_tween=create_tween();exclamation_tween.tween_property(exclamation_icon,"scale",Vector3.ONE,.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	exclamation_tween.tween_interval(2.4);exclamation_tween.tween_property(exclamation_icon,"modulate:a",0.0,.3);exclamation_tween.tween_callback(exclamation_icon.queue_free)

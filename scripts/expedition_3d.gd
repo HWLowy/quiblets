@@ -4,6 +4,7 @@ extends Node3D
 signal expedition_finished(result:Dictionary)
 signal event_message(text:String)
 signal reward_acquired(reward:Dictionary,world_position:Vector3)
+signal boss_intro_started
 signal boss_fight_started
 signal treasure_key_used
 signal boss_fight_ended
@@ -52,6 +53,7 @@ var cache_node:Node3D
 var treasure_keys:=0
 var extra_specials:Array[String]=[]
 var ended:=false
+var command_ring_arrivals:Array[Dictionary]=[]
 
 # Route map. A stage is a chain of clearings ("zones") joined by winding
 # corridors, carved from a one-unit tile grid. Everything off the route rises
@@ -86,10 +88,13 @@ func zone_count()->int:
 
 const BOSS_ARENAS:=3
 const SCATTER_GROUPS:={"level":Vector2i(4,6),"boss":Vector2i(7,9)}
-const SPAWN_POINTS:=8
-const SPAWN_POINT_MIN_START_DISTANCE:=10.0
-const SPAWN_POINT_SPACING:=9.0
-const SET_MIN_TEAM_DISTANCE:=9.0
+# Enemies notice the team before it reaches the formation center. Reserve
+# that approach distance so the actual quiet walk lasts about 6–7 seconds.
+const SET_MIN_TEAM_DISTANCE:=22.0
+const SET_TARGET_WALK_DISTANCE:=27.0
+const SET_MAX_WALK_DISTANCE:=32.0
+const ENCOUNTER_REUSE_RADIUS:=11.0
+var encounter_style:="clearing"
 const SCATTER_ALERT_RADIUS:=3.2
 var spawn_points:Array[Vector2]=[]
 var used_spawn_points:Array[int]=[]
@@ -100,9 +105,14 @@ const SPAWN_DROP_SECONDS:=.54
 const SET_PAN_LINGER:=.6
 const BOSS_INTRO_FACE_DELAY:=2.0
 var spawn_rng:=RandomNumberGenerator.new()
+var known_optional_areas:Array[int]=[]
+var discovered_areas:Array[int]=[]
+var hidden_entrance:Node3D
+var hidden_area_index:=-1
 var exploring:=false
 var camera_pan_target:=Vector3.ZERO
 var camera_pan_time:=0.0
+var boss_intro_pending:=false
 var boss_grunt_player:AudioStreamPlayer
 
 func is_grove()->bool:
@@ -148,7 +158,7 @@ func begin(new_team:Array,level:int,use_fortune:bool,use_challenger:bool)->void:
 	spawn_rng.randomize()
 	var sets:Vector2i=SCATTER_GROUPS.get(stage_kind,Vector2i(4,6))
 	max_waves=1 if is_grove() else spawn_rng.randi_range(sets.x,sets.y)+1
-	grove_zone=1;exploring=false;next_exploration_plan=0.0;camera_pan_time=0.0;used_spawn_points.clear()
+	grove_zone=1;exploring=false;next_exploration_plan=0.0;camera_pan_time=0.0;boss_intro_pending=false;used_spawn_points.clear()
 	loot.clear()
 	for ingredient_name in GameData.INGREDIENTS:loot[ingredient_name]=0
 	move_stones.clear();power_stones.clear()
@@ -185,6 +195,7 @@ func build_level()->void:
 	obstacles.clear();build_obstacles()
 	place_berry_patches(rng)
 	place_treasure_cache(rng)
+	place_hidden_entrance()
 	build_bridges()
 	build_waterfalls()
 	build_clouds(rng)
@@ -252,6 +263,7 @@ func open_treasure_cache()->void:
 # be crossed at land bridges, and blocky multi-tier walls stand in the open,
 # more of them the more walled-in the island's biome is.
 func field_size()->Vector2i:
+	if stage_area_index==18:return Vector2i(170,55)
 	# 2.5 times the former width and depth: 6.25 times the playable area.
 	if is_grove():return Vector2i(160,90)
 	if stage_kind=="boss":return Vector2i(150,100)
@@ -294,7 +306,7 @@ var bridge_approaches:={}
 func carve_rivers(rng:RandomNumberGenerator)->void:
 	var base_count:int=int(biome.rivers)
 	var map_scale:float=float(field_rect.size.x+field_rect.size.y)/220.0
-	var river_count:int=ceili(float(base_count*2+rng.randi_range(EXTRA_RIVERS_MIN,EXTRA_RIVERS_MAX))*map_scale)
+	var river_count:int=ceili(float(base_count)*map_scale)
 	river_channels=river_count;river_flow.clear();bridge_approaches.clear()
 	if river_count<=0:return
 	var usable_left:=field_rect.position.x+7;var usable_right:=field_rect.end.x-8
@@ -303,7 +315,7 @@ func carve_rivers(rng:RandomNumberGenerator)->void:
 	var source_positions:Array[Vector2]=[]
 	for river_index in river_count:
 		var horizontal:bool=river_index==0 or (river_index>1 and rng.randf()<.5)
-		var width:=4 if rng.randf()<.6 else 5
+		var width:=maxi(1,int(biome.get("river_width",3))+rng.randi_range(0,1))
 		var falls:bool=rng.randf()<WATERFALL_CHANCE
 		var reverse:bool=not falls and rng.randf()<.5
 		var flow:=Vector2(1,0) if horizontal else Vector2(0,1)
@@ -632,7 +644,12 @@ func carve_walkable()->void:
 	# The whole field is open ground; only the cliff ring outside it is solid.
 	var grid_min:=Vector2i(field_rect.position.x-16,field_rect.position.y-16);var grid_max:=Vector2i(field_rect.end.x-1+16,field_rect.end.y-1+16)
 	for x in range(field_rect.position.x,field_rect.end.x):
-		for z in range(field_rect.position.y,field_rect.end.y):walkable[Vector2i(x,z)]=true
+		for z in range(field_rect.position.y,field_rect.end.y):
+			var point:=Vector2(x,z);var landform:=str(biome.get("landform","rolling"))
+			var constrained:=landform in ["cavern","ravine"] or stage_area_index in [3,12,16]
+			var width:=4.5 if landform in ["cavern","ravine"] else 7.0
+			var chamber:=zones.any(func(zone):return Vector2(zone.center).distance_to(point)<float(zone.radius.x)*1.8)
+			if not constrained or chamber or route_distance(point)<width+1.6*sin(x*.12):walkable[Vector2i(x,z)]=true
 	set_meta("grid_min",grid_min);set_meta("grid_max",grid_max)
 
 var flight_obstacles:Array[Rect2]=[]
@@ -720,6 +737,10 @@ func build_terrain(rng:RandomNumberGenerator)->void:
 			if walkable.has(cell) or prop_cells.has(cell):
 				if wall_tiers.has(cell):
 					cliff_tiers[int(wall_tiers[cell])]=int(cliff_tiers.get(int(wall_tiers[cell]),0))+1;tiers[cell]=int(wall_tiers[cell]);peaks[cell]=float(CLIFF_TIER_LAYERS[int(wall_tiers[cell])-1]);ground_tile_count+=1;continue
+				var pooled:=str(biome.get("landform",""))=="wetland" or str(biome.name)=="snow"
+				var pool_shape:=sin(x*.19+cos(z*.13))*cos(z*.21)
+				if pooled and pool_shape>(.74 if biome.name=="snow" else .48) and not prop_cells.has(cell) and route_distance(Vector2(cell))>2.5:
+					pond_cells[cell]=true;terrain_heights[cell]=-POND_DEPTH;continue
 				terrain_heights[cell]=0.0;ground_tile_count+=1;continue
 			if rivers.has(cell):terrain_heights[cell]=-RIVER_DEPTH;continue
 			var tier:=int(wall_tiers[cell]) if wall_tiers.has(cell) else clampi(int(distance.get(cell,4)),1,3)
@@ -812,7 +833,13 @@ func build_terrain(rng:RandomNumberGenerator)->void:
 
 # Broad swells of the open ground: a few overlapping long sine waves.
 func plain_roll(point:Vector2)->float:
-	return PLAIN_ROLL*(.6*sin(point.x*.17+1.3)*cos(point.y*.15)+.3*sin(point.x*.37+.5)*sin(point.y*.31)+.1*sin(point.x*.8)*cos(point.y*.7+1.0))
+	var relief:=float(biome.get("relief",.8))
+	var h:=relief*(.6*sin(point.x*.17+1.3)*cos(point.y*.15)+.3*sin(point.x*.37+.5)*sin(point.y*.31)+.1*sin(point.x*.8)*cos(point.y*.7+1.0))
+	match str(biome.get("landform","rolling")):
+		"basin":h+=1.8*pow(clampf(absf(point.y)/maxf(1,field_rect.size.y*.5),0,1),2)
+		"ridges","fjords","looming":h+=relief*pow(absf(sin(point.x*.08+point.y*.11)),3)
+		"wetland":h-=.2*absf(sin(point.x*.14)*cos(point.y*.19))
+	return h
 
 # Distance from every sample to the nearest sample of `target` class (0 on that class).
 func distance_to_class(classes:PackedByteArray,target:int,step:float)->PackedFloat32Array:
@@ -935,6 +962,13 @@ func build_terrain_mesh(classes:PackedByteArray,water_edge:PackedFloat32Array,_h
 				if h>2.4:color=color.lerp(plateau,.5)
 				var trail:float=route_distance(point)
 				if trail<2.6 and classes[index]==0:color=color.lerp(dirt,smoothstep(0.0,1.0,(2.6-trail)/1.6))
+			var landform:=str(biome.get("landform","rolling"))
+			if landform=="dry" and absf(sin(point.x*.8+sin(point.y*.7)))<.07:color=color.darkened(.15)
+			if landform=="wetland" and sin(point.x*.43)*cos(point.y*.36)>.4:color=color.lerp(biome.path,.6)
+			if landform=="mixed":
+				var patch:=sin(point.x*.12)*cos(point.y*.13)
+				if patch>.55:color=color.lerp(Color("#e4e9ef"),.8)
+				elif patch<-.5:color=color.lerp(Color("#cfb27e"),.8)
 			var noise:float=.975+.045*sin(point.x*.83+.4)*cos(point.y*.71)
 			color=Color(color.r*noise,color.g*noise,color.b*noise)
 			st.set_normal(normal);st.set_color(color);st.add_vertex(Vector3(point.x,h,point.y))
@@ -976,8 +1010,8 @@ func build_distant_terrain()->void:
 
 # --- Terrain shader and occlusion fading ----------------------------------------
 # Vertex colours carry the biome palette (authored in sRGB) modulated by a tiny
-# tiling detail texture. Any ground standing between the camera and a Quiblet
-# or enemy fades to WALL_FADE_ALPHA around the line of sight: the CPU marches
+# tiling detail texture. Ground standing between the camera and an enemy
+# fades to WALL_FADE_ALPHA around the line of sight: the CPU marches
 # each fighter's line to the camera through the heightfield and ramps a
 # per-fighter weight smoothly. The terrain draws in two passes so the water in
 # the troughs is never overdrawn: the opaque pass cuts a hole wherever the
@@ -1065,7 +1099,8 @@ func point_occluded_by_terrain(from:Vector3)->bool:
 func update_wall_fades(delta:float)->void:
 	if terrain_material==null or not is_instance_valid(camera):return
 	var points:=PackedVector3Array();var weights:=PackedFloat32Array();var seen:={}
-	for actor in team+enemies:
+	# Player Quiblets never make the terrain transparent.
+	for actor in enemies:
 		if not is_instance_valid(actor):continue
 		var id:int=actor.get_instance_id();seen[id]=true
 		var target:float=1.0 if actor.current_hp>0 and occluded_by_terrain(actor) else 0.0
@@ -1133,6 +1168,7 @@ uniform float flow_speed=1.2;
 uniform float crest_scale=1.3;
 uniform float shore_foam=.55;
 uniform bool surface_flow=false;
+uniform bool frozen=false;
 varying vec3 world_pos;
 varying vec3 flow_dir;
 varying float phase;
@@ -1140,7 +1176,7 @@ varying float depth;
 void vertex(){
 	flow_dir=normalize(COLOR.rgb*2.0-1.0);phase=COLOR.a;depth=UV2.x;
 	world_pos=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
-	float bob=sin(world_pos.x*1.3+world_pos.z*1.1+TIME*1.6+phase*6.283)*.03*(1.0-abs(flow_dir.y));
+	float bob=sin(world_pos.x*1.3+world_pos.z*1.1+TIME*1.6+phase*6.283)*.03*(1.0-abs(flow_dir.y))*(frozen ? 0.0 : 1.0);
 	VERTEX+=inverse(mat3(MODEL_MATRIX))*vec3(0.0,bob,0.0);
 }
 void fragment(){
@@ -1170,7 +1206,8 @@ func water_shader()->Shader:
 
 func water_material()->ShaderMaterial:
 	var material:=ShaderMaterial.new();material.shader=water_shader()
-	var water:Color=biome.water_color;material.set_shader_parameter("tint",Color(water.r,water.g,water.b,.82))
+	var water:Color=biome.water_color;material.set_shader_parameter("tint",Color(water.r,water.g,water.b,.94 if biome.name=="snow" else .82))
+	if biome.name=="snow":material.set_shader_parameter("frozen",true);material.set_shader_parameter("flow_speed",0.0)
 	return material
 
 # Encode a flow direction and a phase into a vertex colour for the water shader.
@@ -1460,43 +1497,69 @@ func build_clouds(rng:RandomNumberGenerator)->void:
 			var ball:=MeshInstance3D.new();ball.mesh=GameData.leaf_sphere();ball.scale=Vector3.ONE*float(puff[3])*2.0*puff_scale;ball.position=Vector3(puff[0],puff[1],puff[2])*puff_scale;ball.material_override=material;ball.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;cloud.add_child(ball)
 		clouds.append({"node":cloud,"material":material,"opacity":1.0,"speed":rng.randf_range(.12,.2)*(1.0 if i%2==0 else -1.0)})
 
-# Fade the whole cloud when a visible puff lies between the camera and the
-# playable ground. Projecting rays also handles orthographic cameras and pans.
-func cloud_blocks_camera(node:Node3D)->bool:
-	if not is_instance_valid(camera):return false
+# Only gameplay objects trigger fading; empty terrain and decorative scenery
+# remain covered. Bounds are cached on each model, while transforms stay live.
+func cloud_important_points()->PackedVector3Array:
+	var points:=PackedVector3Array()
+	if not is_instance_valid(camera):return points
+	var targets:Array=[]
+	for actor in team+enemies:
+		if is_instance_valid(actor) and is_instance_valid(actor.model):targets.append(actor.model)
+	for patch in berry_nodes:
+		if is_instance_valid(patch):targets.append(patch)
+	for prop in props:
+		if is_instance_valid(prop) and prop.harvestable():targets.append(prop)
+	if is_instance_valid(cache_node):targets.append(cache_node)
+	var ring:=get_node_or_null("CommandRing")
+	if ring!=null:targets.append(ring)
 	var view:=camera.get_viewport().get_visible_rect()
+	for target in targets:
+		if not target.is_visible_in_tree() or target.is_queued_for_deletion():continue
+		if not target.has_meta("cloud_target_bounds"):
+			var meshes:Array=target.find_children("*","MeshInstance3D",true,false)
+			if target is MeshInstance3D:meshes.append(target)
+			var bounds:=AABB();var started:=false
+			for mesh in meshes:
+				if mesh.mesh==null:continue
+				var local_box:AABB=(target.global_transform.affine_inverse()*mesh.global_transform)*mesh.get_aabb()
+				bounds=local_box if not started else bounds.merge(local_box);started=true
+			target.set_meta("cloud_target_bounds",bounds)
+		var bounds:AABB=target.global_transform*target.get_meta("cloud_target_bounds")
+		var center:=bounds.get_center()
+		# Test centre and visible edges so a puff covering part of a model counts.
+		var horizontal:float=maxf(bounds.size.x,bounds.size.z)*.35
+		var vertical:float=bounds.size.y*.35
+		for offset in [Vector3.ZERO,camera.global_basis.x*horizontal,-camera.global_basis.x*horizontal,camera.global_basis.y*vertical,-camera.global_basis.y*vertical]:
+			var point:Vector3=center+offset
+			if not camera.is_position_behind(point) and view.has_point(camera.unproject_position(point)):points.append(point)
+	return points
+
+func cloud_blocks_camera(node:Node3D,important_points:Variant=null)->bool:
+	if not is_instance_valid(camera):return false
+	if important_points==null:important_points=cloud_important_points()
 	for puff in node.get_children():
-		if not puff is MeshInstance3D:continue
+		if not puff is MeshInstance3D or puff.mesh==null:continue
 		var center:Vector3=puff.global_position
-		var radius:float=puff.mesh.get_aabb().size.x*.5*puff.global_basis.get_scale().x
-		if camera.global_position.distance_to(center)<radius:return true
-		if camera.is_position_behind(center):continue
-		var projected:=camera.unproject_position(center)
-		var screen_radius:=projected.distance_to(camera.unproject_position(center+camera.global_basis.x*radius))
-		if not view.intersects(Rect2(projected-Vector2.ONE*screen_radius,Vector2.ONE*screen_radius*2.0)):continue
-		# Sample the puff's centre and edges so the fade starts before its centre
-		# crosses the field edge, instead of popping as the cloud drifts past it.
-		for offset in [Vector2.ZERO,Vector2.LEFT,Vector2.RIGHT,Vector2.UP,Vector2.DOWN]:
-			var screen_point:Vector2=projected+offset*screen_radius*.75
-			if not view.has_point(screen_point):continue
+		var radius:float=puff.mesh.get_aabb().size.x*.5*absf(puff.global_basis.get_scale().x)
+		for point in important_points:
+			var screen_point:=camera.unproject_position(point)
 			var origin:=camera.project_ray_origin(screen_point);var direction:=camera.project_ray_normal(screen_point)
-			if direction.y>=-.001:continue
-			var distance:float=-origin.y/direction.y
-			var ground:=origin+direction*distance
-			for pass_index in 2:
-				distance=(terrain_height_at(Vector2(ground.x,ground.z))-origin.y)/direction.y
-				ground=origin+direction*distance
-			if distance>origin.distance_to(center)-radius and Rect2(field_rect).has_point(Vector2(ground.x,ground.z)):return true
+			var distance:float=(point-origin).dot(direction)
+			if distance<=0.0:continue
+			var along:float=clampf((center-origin).dot(direction),0.0,distance)
+			if (origin+direction*along).distance_squared_to(center)<radius*radius:return true
 	return false
 
 func update_clouds(delta:float)->void:
+	if clouds.is_empty():return
+	var important_points:=cloud_important_points()
 	for cloud in clouds:
 		var node:Node3D=cloud.node
 		if not is_instance_valid(node):continue
 		node.position.x+=float(cloud.speed)*delta
 		if node.position.x>field_rect.end.x+6:node.position.x=field_rect.position.x-6
 		if node.position.x<field_rect.position.x-6:node.position.x=field_rect.end.x+6
-		var target:=CLOUD_BLOCKED_OPACITY if cloud_blocks_camera(node) else 1.0
+		var target:=CLOUD_BLOCKED_OPACITY if cloud_blocks_camera(node,important_points) else 1.0
 		cloud.opacity=move_toward(float(cloud.opacity),target,(1.0-CLOUD_BLOCKED_OPACITY)*delta/CLOUD_FADE_SECONDS)
 		var material:StandardMaterial3D=cloud.material;material.albedo_color=Color(1,1,1,float(cloud.opacity))
 
@@ -1792,6 +1855,8 @@ func shuffle_cells(cells:Array[Vector2i],rng:RandomNumberGenerator)->void:
 		var j:=rng.randi_range(0,i);var swap:Vector2i=cells[i];cells[i]=cells[j];cells[j]=swap
 
 func _process(delta:float)->void:
+	update_hidden_discovery()
+	update_command_ring_arrivals()
 	elapsed+=delta
 	update_group_camera(delta)
 	update_wall_fades(delta)
@@ -1809,6 +1874,9 @@ func _process(delta:float)->void:
 	# The team only engages enemies that have noticed it, so a distant idle group
 	# never drags the team straight across rivers and walls; exploration routes
 	# the team to the next group along walkable ground instead.
+	var active_groups:={}
+	for enemy in enemies:
+		if enemy.has_meta("group") and (enemy.get_meta("alerted",false) or enemy.current_hp<enemy.max_hp):active_groups[enemy.get_meta("group")]=true
 	for actor in enemies:
 		if actor.current_hp<=0:continue
 		if not actor.get_meta("alerted",true):
@@ -1816,9 +1884,10 @@ func _process(delta:float)->void:
 			if actor.has_meta("alert_center"):center=actor.get_meta("alert_center");reach=float(actor.get_meta("alert_radius",SCATTER_ALERT_RADIUS))
 			else:
 				var zone:Dictionary=zones[clampi(int(actor.get_meta("zone",0)),0,zones.size()-1)];center=zone.center;reach=maxf(zone.radius.x,zone.radius.y)
-			var reached:bool=living.any(func(member):return Vector2(member.position.x,member.position.z).distance_to(center)<=reach+ALERT_MARGIN)
-			if reached or actor.current_hp<actor.max_hp:
+			var reached:bool=living.any(func(member):return Vector2(member.position.x,member.position.z).distance_to(center)<=reach+ALERT_MARGIN and line_walkable(Vector2(member.position.x,member.position.z),center,member.floats_over_water()))
+			if reached or actor.current_hp<actor.max_hp or active_groups.has(actor.get_meta("group",-1)):
 				actor.set_meta("alerted",true)
+				if actor.has_meta("group"):active_groups[actor.get_meta("group")]=true
 				if advance_index>=0:
 					advance_index=-1
 					for member in living:member.has_command=false
@@ -1954,7 +2023,12 @@ func update_group_camera(delta:float)->void:
 	var spread:=maxf(max_x-min_x,max_z-min_z)
 	# A boss introduction pans the camera over to the arena for a few seconds.
 	if camera_pan_time>0.0:
-		camera_pan_time-=delta;group_center=camera_pan_target;spread=6.0
+		camera_pan_time=maxf(0.0,camera_pan_time-delta)
+		if camera_pan_time>0.0:
+			group_center=camera_pan_target;spread=6.0
+		elif boss_intro_pending:
+			boss_intro_pending=false
+			if not ended:boss_fight_started.emit()
 	# Catch up faster the further the focus lags behind the team, so a new route
 	# or a long dash never leaves the camera trailing behind.
 	var weight:=1.0-exp(-(3.0+camera_focus.distance_to(group_center)*.6)*delta)
@@ -1994,15 +2068,6 @@ func spawn_wave()->void:
 # clicks elsewhere. When the last set falls, the boss takes the nearest arena.
 func prepare_spawn_points()->void:
 	spawn_points.clear();used_spawn_points.clear()
-	var start:Vector2=zones[0].center;var candidates:Array[Vector2i]=[]
-	for cell in walkable:
-		if cell_open(cell) and Vector2(cell).distance_to(start)>=SPAWN_POINT_MIN_START_DISTANCE:candidates.append(cell)
-	shuffle_cells(candidates,spawn_rng)
-	for cell in candidates:
-		if spawn_points.size()>=SPAWN_POINTS:break
-		var point:=Vector2(cell)
-		if spawn_points.any(func(other):return other.distance_to(point)<SPAWN_POINT_SPACING):continue
-		spawn_points.append(point)
 
 func team_centroid()->Vector2:
 	var living:Array=team.filter(func(actor):return actor.current_hp>0)
@@ -2011,40 +2076,140 @@ func team_centroid()->Vector2:
 	for member in living:centroid+=Vector2(member.position.x,member.position.z)
 	return centroid/living.size()
 
-# An unused spawn area at least SET_MIN_TEAM_DISTANCE from the team; failing
-# that the farthest unused one, and failing that any spawn area.
-func pick_spawn_point()->int:
-	var centroid:=team_centroid();var unused:Array[int]=[]
-	for i in spawn_points.size():
-		if not used_spawn_points.has(i):unused.append(i)
-	if unused.is_empty():
-		used_spawn_points.clear()
-		for i in spawn_points.size():unused.append(i)
-	var far:Array[int]=unused.filter(func(i):return spawn_points[i].distance_to(centroid)>=SET_MIN_TEAM_DISTANCE)
-	if not far.is_empty():return far[spawn_rng.randi_range(0,far.size()-1)]
-	var best:int=unused[0];var best_distance:=-1.0
-	for i in unused:
-		var distance:=spawn_points[i].distance_to(centroid)
-		if distance>best_distance:best_distance=distance;best=i
-	return best
+# Search only a short walking radius, including bridge detours. This single
+# bounded flood replaces random destinations across the whole island.
+func encounter_distances(from:Vector2)->Dictionary:
+	var start:=nearest_walkable_cell(from)
+	var distances:={start:from.distance_to(Vector2(start))};var frontier:Array[Vector2i]=[start];var head:=0
+	while head<frontier.size():
+		var cell:=frontier[head];head+=1
+		var distance:=float(distances[cell])+1.0
+		if distance>SET_MAX_WALK_DISTANCE:continue
+		for offset in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+			var next:Vector2i=cell+offset
+			if walkable.has(next) and not distances.has(next):
+				distances[next]=distance;frontier.append(next)
+	return distances
+
+func encounter_walk_distance(from:Vector2,to:Vector2)->float:
+	var path:=find_path(from,to)
+	if path.is_empty():return INF
+	var distance:=0.0;var previous:=from
+	for point in path:
+		var next:=Vector2(point.x,point.z);distance+=previous.distance_to(next);previous=next
+	return distance
+
+func near_encounter_bridge(point:Vector2)->bool:
+	for arch in bridge_arches:
+		var relative:=point-Vector2(arch.center);var axis:Vector2=arch.get("axis",Vector2.RIGHT)
+		var along:=absf(relative.dot(axis));var across:=absf(relative.dot(Vector2(-axis.y,axis.x)))
+		if along>=float(arch.half_span) and along<=float(arch.half_span)+4.0 and across<=4.0:return true
+	return false
+
+func fresh_encounter_ground(point:Vector2)->bool:
+	for old in spawn_points:
+		if point.distance_to(old)<ENCOUNTER_REUSE_RADIUS:return false
+	return true
+
+func encounter_preference(from:Vector2,point:Vector2,wants_bridge:bool)->float:
+	var freshness:=12.0
+	for old in spawn_points:freshness=minf(freshness,point.distance_to(old))
+	# Distance dominates; direction, fresh ground, and scenery only break ties.
+	var preference:=clampf(point.x-from.x,-12.0,12.0)*.12+freshness*.08
+	if point.x>from.x+1.0:preference+=8.0
+	elif point.x<from.x-1.0:preference-=8.0
+	if wants_bridge and near_encounter_bridge(point):preference+=.6
+	return preference
+
+func pick_spawn_point(for_boss:=false)->int:
+	var from:=team_centroid();var distances:=encounter_distances(from)
+	var previous:Vector2=spawn_points.back() if not spawn_points.is_empty() else from
+	var candidates:Array[Dictionary]=[]
+	var wants_bridge:=not for_boss and wave%3==2
+	for cell:Vector2i in distances:
+		if float(distances[cell])<SET_MIN_TEAM_DISTANCE or not cell_exposed(cell):continue
+		var point:=Vector2(cell)
+		if not fresh_encounter_ground(point):continue
+		var estimate:=from.distance_to(point) if line_walkable(from,point) else float(distances[cell])
+		var preference:=encounter_preference(from,point,wants_bridge)
+		# Progress is measured from the last encounter, not where ranged fighters
+		# stopped short of it. Prefer a new encounter beyond that location.
+		if point.x>previous.x+3.0:preference+=20.0
+		var score:=preference-absf(estimate-SET_TARGET_WALK_DISTANCE)*4.0
+		candidates.append({"point":point,"score":score,"preference":preference})
+	candidates.sort_custom(func(a,b):return a.score>b.score)
+	var chosen:=from;var found:=false;var best:=-INF
+	# Re-rank a bounded shortlist by the real, smoothed walking route.
+	for candidate in candidates.slice(0,32):
+		var distance:=encounter_walk_distance(from,candidate.point)
+		if distance<SET_MIN_TEAM_DISTANCE or distance>SET_MAX_WALK_DISTANCE:continue
+		var score:=float(candidate.preference)-absf(distance-SET_TARGET_WALK_DISTANCE)*4.0
+		if score>best:best=score;chosen=candidate.point;found=true
+	# Confined pockets may not fit a medium walk. Use the closest achievable
+	# distance to the target, still within the bounded walkable area.
+	if not found:
+		var fallback:Array[Dictionary]=[]
+		for cell:Vector2i in distances:
+			if not cell_open(cell):continue
+			var point:=Vector2(cell)
+			fallback.append({"point":point,"error":absf(float(distances[cell])-SET_TARGET_WALK_DISTANCE)+(0.0 if fresh_encounter_ground(point) else 100.0)})
+		fallback.sort_custom(func(a,b):return a.error<b.error)
+		for candidate in fallback.slice(0,32):
+			var distance:=encounter_walk_distance(from,candidate.point)
+			if distance>SET_MAX_WALK_DISTANCE:continue
+			var score:=-absf(distance-SET_TARGET_WALK_DISTANCE)*4.0+encounter_preference(from,candidate.point,wants_bridge)
+			if fresh_encounter_ground(candidate.point):score+=100.0
+			if score>best:best=score;chosen=candidate.point
+	encounter_style="bridge" if wants_bridge and near_encounter_bridge(chosen) else ("surround" if not for_boss and wave%3==0 else "clearing")
+	spawn_points.append(chosen)
+	return spawn_points.size()-1
+
+func encounter_positions(center:Vector2,count:int)->Array[Vector2]:
+	var result:Array[Vector2]=[]
+	var approach:=(center-team_centroid()).normalized()
+	if approach.length_squared()<.1:approach=Vector2.RIGHT
+	var side:=Vector2(-approach.y,approach.x)
+	var local:=encounter_distances(center)
+	for i in count:
+		var desired:=center
+		if encounter_style=="surround":
+			desired+=Vector2.from_angle(TAU*float(i)/maxi(count,3))*2.8
+		elif encounter_style=="bridge":
+			desired+=side*(float(i)-float(count-1)*.5)*1.6+approach*1.2
+		else:
+			desired+=side*(float(i%2)*2.0-1.0)+approach*float(i/2)*1.8
+		var best:=INF;var placed:=center
+		for cell:Vector2i in local:
+			var point:=Vector2(cell)
+			if float(local[cell])>5.0 or not cell_open(cell):continue
+			if result.any(func(other):return other.distance_to(point)<1.0):continue
+			if not line_walkable(center,point):continue
+			var score:=point.distance_squared_to(desired)
+			if score<best:best=score;placed=point
+		result.append(placed)
+	return result
 
 func spawn_enemy_set()->void:
-	if spawn_points.is_empty():prepare_spawn_points()
 	var point_index:=pick_spawn_point();used_spawn_points.append(point_index);var center:Vector2=spawn_points[point_index]
 	var scaling:=GameData.enemy_scaling(stage_area_index);var extra:=GameData.extra_enemies_for_area(stage_area_index)
 	var team_scaled_cap:=maxi(1,ceili(team_data.size()*.75))
 	var count:=mini(1+spawn_rng.randi_range(0,1),team_scaled_cap)+extra+(1 if challenger else 0)+(BOSS_STAGE_EXTRA_ENEMIES if stage_kind=="boss" else 0)
+	# Surround encounters need enough opponents to occupy distinct sides.
+	if encounter_style=="surround":count=maxi(count,3)
+	var positions:=encounter_positions(center,count)
 	for i in count:
 		var level_boost:=(2 if challenger else (1 if fortune else 0))+(BOSS_STAGE_ENEMY_LEVEL_BOOST if stage_kind=="boss" else 0)
 		var q:=make_enemy((stage_area_index+stage_node_index+wave*3+i)%GameData.SPECIES.size(),enemy_level(spawn_rng.randi_range(-1,1)))
 		var actor:=QuibletActor3D.new();actor.setup(q,true,level_boost,-1,scaling)
-		var block:=open_block_direction(Vector2i(center))
-		actor.position=Vector3(center.x+(i%2)*.9*float(block.x),0,center.y+(i/2)*.9*float(block.y))
-		actor.set_meta("zone",patch_zone(center));actor.set_meta("group",wave);actor.set_meta("spawn_point",point_index);actor.set_meta("alert_center",center);actor.set_meta("alert_radius",SCATTER_ALERT_RADIUS);actor.set_meta("alerted",false)
+		actor.position=Vector3(positions[i].x,0,positions[i].y)
+		actor.set_meta("zone",patch_zone(center));actor.set_meta("group",wave);actor.set_meta("spawn_point",point_index);actor.set_meta("alert_center",center);actor.set_meta("alert_radius",1.8 if encounter_style=="surround" else SCATTER_ALERT_RADIUS);actor.set_meta("encounter_style",encounter_style);actor.set_meta("alerted",false)
 		place_actor(actor);enemies.append(actor);play_spawn_drop(actor,i*SPAWN_DROP_STAGGER)
 	exploring=true
 	camera_pan_target=Vector3(center.x,0,center.y);camera_pan_time=spawn_drop_duration(count)+SET_PAN_LINGER
-	event_message.emit("Enemy set %d of %d appears somewhere in the field."%[wave,max_waves-1] if wave>1 else "Enemies stir somewhere in the field. Beat every set to draw out the boss.")
+	var announcement:="Enemies guard the next clearing."
+	if encounter_style=="bridge":announcement="An ambush waits by the crossing!"
+	elif encounter_style=="surround":announcement="Enemies are gathering on multiple sides!"
+	event_message.emit(announcement)
 
 # New enemies pop in slightly above their spot, hop up a little, then drop to
 # the ground. The lift goes through the actor's model_lift offset because the
@@ -2178,24 +2343,32 @@ func nearest_arena_index()->int:
 	return best
 
 func spawn_boss_wave()->void:
-	var arena_index:=nearest_arena_index();var center:Vector2=zones[arena_index].center
+	# Bosses use the same medium-distance placement as regular waves, including
+	# the minimum distance: an arena beside the team is no longer an exception.
+	var center:Vector2=spawn_points[pick_spawn_point(true)]
+	var arena_index:=patch_zone(center)
 	var team_scaled_cap:=maxi(1,ceili(team_data.size()*.75));var extra:=GameData.extra_enemies_for_area(stage_area_index)
 	var count:=mini(2,team_scaled_cap)+extra+(1 if challenger else 0)+(BOSS_STAGE_EXTRA_ENEMIES if stage_kind=="boss" else 0)+1
 	var scaling:=GameData.enemy_scaling(stage_area_index);var boss:QuibletActor3D=null
+	encounter_style="clearing"
+	var positions:=encounter_positions(center,count)
 	for i in count:
 		var is_level_boss:=i==count-1
 		var level_boost:=(2 if challenger else (1 if fortune else 0))
 		if stage_kind=="boss":level_boost+=BOSS_STAGE_BOSS_LEVEL_BOOST if is_level_boss else BOSS_STAGE_ENEMY_LEVEL_BOOST
 		var q:=make_enemy((stage_area_index+stage_node_index+7+i)%GameData.SPECIES.size(),enemy_level(1));var actor:=QuibletActor3D.new();actor.setup(q,true,level_boost,-1,scaling)
 		# The boss drops in too, but its landing squash is left to its own introduction.
-		actor.position=Vector3(center.x-.65+(i%2)*1.3,0,center.y-1.6+(i/2)*1.6);actor.set_meta("zone",arena_index);actor.set_meta("alerted",false);place_actor(actor);enemies.append(actor);play_spawn_drop(actor,i*SPAWN_DROP_STAGGER,not is_level_boss)
+		actor.position=Vector3(positions[i].x,0,positions[i].y);actor.set_meta("zone",arena_index);actor.set_meta("alert_center",center);actor.set_meta("alert_radius",5.0);actor.set_meta("group",wave);actor.set_meta("alerted",false);place_actor(actor);enemies.append(actor);play_spawn_drop(actor,i*SPAWN_DROP_STAGGER,not is_level_boss)
 		if is_level_boss:
 			actor.set_meta("level_boss",true);var boss_scale:=BOSS_STAGE_BOSS_SCALE if stage_kind=="boss" else 1.3;actor.scale=Vector3.ONE*boss_scale;actor.max_hp*=BOSS_STAGE_BOSS_HP_MULTIPLIER if stage_kind=="boss" else 1.45;actor.current_hp=actor.max_hp;actor.damage_multiplier*=BOSS_STAGE_BOSS_DAMAGE_MULTIPLIER if stage_kind=="boss" else 1.12
 			boss=actor
 	exploring=true
 	camera_pan_target=Vector3(center.x,0,center.y);camera_pan_time=BOSS_INTRO_PAN_SECONDS
-	if boss!=null:boss_intro(boss)
-	event_message.emit("The field is clear — a boss emerges in the nearest arena!")
+	if boss!=null:
+		boss_intro_pending=true
+		boss_intro_started.emit()
+		boss_intro(boss)
+	event_message.emit("The field is clear — a boss emerges ahead!")
 
 func boss_intro(boss:QuibletActor3D)->void:
 	await get_tree().create_timer(BOSS_INTRO_FACE_DELAY,false,true).timeout
@@ -2204,8 +2377,7 @@ func boss_intro(boss:QuibletActor3D)->void:
 		var toward:=camera.global_position;toward.y=boss.model.global_position.y
 		if toward.distance_to(boss.model.global_position)>.1:boss.model.look_at(toward,Vector3.UP,true)
 	play_boss_grunt()
-	# The Boss theme starts with the grunt, not with the spawn or the camera pan.
-	boss_fight_started.emit()
+	# Keep the grunt clear; music begins when the camera returns to the team.
 	# The stretch and squash go through the actor's model_stretch multiplier
 	# (the model's scale is rebuilt every tick, and the physics body itself must
 	# stay uniformly scaled): up during the "errr", down during the "grrnt".
@@ -2302,18 +2474,87 @@ func rout_escorts(boss:QuibletActor3D)->void:
 		_on_actor_defeated(escort)
 
 func _on_move_used(_actor:QuibletActor3D,_move_name:String,_new_target:QuibletActor3D,_details:Dictionary)->void:
-	# MoveCast3D now owns visuals and collisions together. There is no separate
-	# cosmetic projectile launched after instant damage.
-	pass
+	if _move_name!="Distract":return
+	var affected:Array=team if _actor.enemy else alerted_enemies()
+	for actor in affected:
+		if actor.current_hp>0 and actor.horizontal_distance(actor.position,_actor.position)<=TAUNT_RANGE:actor.show_exclamation()
+
+# Sample the same ground surface used by movement, so raised terrain and
+# bridge clicks land beneath the cursor rather than on an invisible flat plane.
+func command_surface_height(point:Vector2)->float:
+	return maxf(terrain_height_at(point),WATER_LEVEL)
+
+func ground_command_hit(origin:Vector3,direction:Vector3)->Variant:
+	var previous:=0.0
+	for step in range(1,801):
+		var distance:=float(step)*.5
+		var point:=origin+direction*distance
+		if point.y<=command_surface_height(Vector2(point.x,point.z)):
+			var low:=previous;var high:=distance
+			for refinement in 12:
+				var mid:=(low+high)*.5
+				var sample:=origin+direction*mid
+				if sample.y>command_surface_height(Vector2(sample.x,sample.z)):low=mid
+				else:high=mid
+			return origin+direction*((low+high)*.5)
+		previous=distance
+	return null
+
+func update_command_ring_arrivals()->void:
+	var ring:=get_node_or_null("CommandRing")
+	if ring==null:return
+	for index in range(command_ring_arrivals.size()-1,-1,-1):
+		var arrival:Dictionary=command_ring_arrivals[index]
+		var actor=arrival.actor
+		if not is_instance_valid(actor) or actor.current_hp<=0:
+			command_ring_arrivals.remove_at(index);continue
+		var distance:float=actor.horizontal_distance(actor.position,arrival.goal)
+		# Match the movement controller's final-point tolerance, including
+		# teammates stopping slightly short when they crowd the destination.
+		if distance<.35 or (not actor.has_command and distance<1.6):
+			command_ring_arrivals.remove_at(index)
+	if command_ring_arrivals.is_empty():
+		remove_child(ring);ring.queue_free()
+
+func show_command_ring(point:Vector3)->void:
+	command_ring_arrivals.clear()
+	var active:Array=team.filter(func(actor):return is_instance_valid(actor) and actor.current_hp>0)
+	for index in active.size():
+		var actor:QuibletActor3D=active[index]
+		var goal:=point+Vector3((float(index)-float(active.size()-1)*.5)*.9,0,0)
+		if actor.has_command:goal=actor.command_path.back() if not actor.command_path.is_empty() else actor.desired_point
+		command_ring_arrivals.append({"actor":actor,"goal":goal})
+	var old:=get_node_or_null("CommandRing")
+	if old!=null:
+		remove_child(old);old.queue_free()
+	var ring:=MeshInstance3D.new();ring.name="CommandRing"
+	var mesh:=ImmediateMesh.new()
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Each vertex rests on the surface, including on slopes and bridge arches.
+	for segment in 64:
+		var a:=TAU*float(segment)/64.0;var b:=TAU*float(segment+1)/64.0
+		for corner in [Vector2(a,.67),Vector2(b,.67),Vector2(b,.82),Vector2(a,.67),Vector2(b,.82),Vector2(a,.82)]:
+			var x:float=point.x+cos(corner.x)*corner.y
+			var z:float=point.z+sin(corner.x)*corner.y
+			mesh.surface_add_vertex(Vector3(x,command_surface_height(Vector2(x,z))+.045,z))
+	mesh.surface_end();ring.mesh=mesh
+	var material:=StandardMaterial3D.new()
+	material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode=BaseMaterial3D.CULL_DISABLED
+	material.albedo_color=Color.WHITE
+	ring.material_override=material
+	ring.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
 
 func _unhandled_input(event:InputEvent)->void:
 	if ended:return
 	if not is_instance_valid(camera):return
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
-		var origin:=camera.project_ray_origin(event.position);var direction:=camera.project_ray_normal(event.position);var plane:=Plane(Vector3.UP,0);var hit=plane.intersects_ray(origin,direction)
+		var hit=ground_command_hit(camera.project_ray_origin(event.position),camera.project_ray_normal(event.position))
 		if hit==null:return
 		var point:Vector3=hit
-		command_team(point);get_viewport().set_input_as_handled()
+		command_team(point);show_command_ring(point);get_viewport().set_input_as_handled()
 
 func finish(victory:bool)->void:
 	if ended:return
@@ -2328,4 +2569,35 @@ func finish(victory:bool)->void:
 	if victory:
 		special=GameData.roll_special_item(stage_kind,fortune)
 		if GameData.roll_treasure_key(stage_kind,fortune):extra_specials.append("Treasure Key")
-	expedition_finished.emit({"victory":victory,"exp":exp_reward,"loot":loot,"move_stones":move_stones,"power_stones":power_stones,"special":special,"extra_specials":extra_specials.duplicate(),"berries":gathered,"elapsed":elapsed,"area_index":stage_area_index,"node_index":stage_node_index,"stage_kind":stage_kind})
+	expedition_finished.emit({"victory":victory,"exp":exp_reward,"loot":loot,"move_stones":move_stones,"power_stones":power_stones,"special":special,"extra_specials":extra_specials.duplicate(),"berries":gathered,"elapsed":elapsed,"area_index":stage_area_index,"node_index":stage_node_index,"stage_kind":stage_kind,"discovered_areas":discovered_areas.duplicate()})
+
+# A concealed side entrance is only revealed by approaching it on foot. Its
+# destination is committed to progression by the run's results, never mid-run.
+func place_hidden_entrance()->void:
+	hidden_area_index=-1;discovered_areas.clear()
+	for optional in GameData.OPTIONAL_AREA_HOSTS:
+		if int(GameData.OPTIONAL_AREA_HOSTS[optional])==stage_area_index and not known_optional_areas.has(int(optional)):hidden_area_index=int(optional)
+	if hidden_area_index<0:return
+	var best:=INF;var chosen:=Vector2.ZERO
+	var wanted:=Vector2(field_rect.position.x+field_rect.size.x*.32,0)
+	for cell in reachable_walkable_cells():
+		var point:=Vector2(cell);var side:=route_distance(point)
+		if not cell_exposed(cell) or side<3.0 or side>8.0:continue
+		var score:=point.distance_to(wanted)
+		if score<best:best=score;chosen=point
+	if best==INF:hidden_area_index=-1;return
+	hidden_entrance=Node3D.new();hidden_entrance.name="OccludedAreaEntrance";hidden_entrance.position=Vector3(chosen.x,terrain_height_at(chosen),chosen.y);add_child(hidden_entrance)
+	for offset in [Vector3(-1,1,0),Vector3(1,1,0),Vector3(0,2,0)]:
+		var rock:=MeshInstance3D.new();rock.mesh=GameData.rounded_box(Vector3(.9,2,.8) if offset.y<2 else Vector3(2.8,.7,.9),.2);rock.position=offset;rock.material_override=plain_material(biome.cliff);hidden_entrance.add_child(rock)
+	var veil:=ExpeditionProp3D.new();var rng:=RandomNumberGenerator.new();rng.seed=stage_area_index+819
+	veil.setup("bush",Vector2i.ZERO,biome,1,rng);veil.bears_fruit=false;veil.position=Vector3(.7,0,.7);hidden_entrance.add_child(veil)
+
+func update_hidden_discovery()->void:
+	if ended or hidden_area_index<0 or not is_instance_valid(hidden_entrance) or discovered_areas.has(hidden_area_index):return
+	var point:=Vector2(hidden_entrance.position.x,hidden_entrance.position.z)
+	for actor in team:
+		if actor.current_hp<=0:continue
+		var from:=Vector2(actor.position.x,actor.position.z)
+		if from.distance_to(point)<=3.8 and line_walkable(from,point,actor.floats_over_water()):
+			discovered_areas.append(hidden_area_index);actor.show_exclamation()
+			event_message.emit("A hidden passage! %s will be added to your map after this expedition."%GameData.EXPEDITION_AREAS[hidden_area_index]);return

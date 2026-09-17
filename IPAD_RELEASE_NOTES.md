@@ -5,8 +5,8 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 14, 2026**
-Latest integrated upstream commit: **`d44b97b`**
+Last updated: **September 17, 2026**
+Latest integrated upstream commit: **`ebe1aab`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -95,7 +95,10 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 - Added the Power Stone Recycler as a fifth tab inside the Stone Workshop, so
   combining, revitalizing, converting, reforging, and recycling all live in one
   stone-management destination.
-- Up to ten unfitted stones can be selected and recycled together.
+- Up to fifteen unfitted stones can be selected and recycled together.
+- Every Stone Workshop mode remembers its own inventory position when a stone
+  is selected or removed. The Recycler also remembers the position in its
+  selected-stones column, so repeated work no longer jumps back to the top.
 - Every stone rolls its reward separately; the full combined result remains on
   screen and pickup-style cards flash what was received.
 - A rare spice or special item replaces that stone's ordinary ingredient
@@ -241,6 +244,25 @@ affect future training only; they do not reduce levels already earned.
   shortcuts, the active-stew notice, explicit level selection, iOS settings,
   fallback creature refinements, and save compatibility.
 
+### September 17, 2026
+
+- **`5880b4e` upstream — Improve Quiblet arrivals, equipment menus, movement,
+  and artwork**
+  Adopted Brighton's newer creature models and portraits, move artwork,
+  equipment refinements, camp movement, and arrival behavior.
+- **`ebe1aab` upstream — Expand regional exploration and refine expeditions and
+  stone workshop**
+  Adopted Brighton's connected regional map, optional-region discovery,
+  expedition refinements, charm equipment, and Stone Workshop improvements.
+- **Family-edition merge resolution — this merge commit**
+  Brighton's gameplay, artwork, and core interface decisions take precedence.
+  The merge preserves the iPad touch controls and signing, family balance,
+  five-tab Stone Workshop, tier-scaled mixed recycling rewards, cooking and
+  workshop navigation, explicit level selection, and maintained visual
+  fallbacks. Recycling now uses Brighton's fifteen-stone limit and verifies
+  each selected stone before destroying it. All five Workshop modes preserve
+  their list positions while selecting and processing stones.
+
 ## Upstream merge policy
 
 When Brighton pushes new work:
@@ -269,6 +291,8 @@ Focused automated checks:
 - `tests/power_stone_recycling.gd` — batch recycling and tier reward boundaries
 - `tests/training.gd` — XP transfer, retention, confirmation, and helper handling
 - `tests/stone_inventory_tabs.gd` — stone filtering, paging, and arrow placement
+- `tests/stone_workshop_scroll.gd` — per-mode list-position preservation after
+  selecting or removing Workshop and Recycler stones
 - `tests/navigation_flows.gd` — cross-screen workshop, cooking, and arrival
   inspection routes
 - `tests/areas.gd` — explicit island-to-route-to-level gesture separation
@@ -280,10 +304,11 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 14, 2026:
+Latest verified result on September 17, 2026:
 
 - Power Stone recycling: **19 checks, 0 failures**
-- Stone Workshop: **85 checks, 0 failures**
+- Stone Workshop: **169 checks, 0 failures**
+- Stone Workshop scroll memory: **8 checks, 0 failures**
 - Navigation flows: **7 checks, 0 failures**
 - Touch scrolling: **20 checks, 0 failures**
 - Stone inventory tabs: **11 checks, 0 failures**
@@ -291,6 +316,14 @@ Latest verified result on September 14, 2026:
 - Animated arrivals: **passed**
 - Training: **77 checks, 0 failures**
 - Full smoke check: **passed**
+- Brighton's charm equipment, camp navigation, regional progression and
+  discovery, and training-equipment refund checks: **passed**
+
+The legacy all-special-items check exceeded four minutes while constructing
+its exhaustive expedition-cache sample after the regional expansion. Its
+Stone Workshop behavior is covered by the passing focused Workshop checks;
+the cache sampling portion should be profiled separately rather than treated
+as a functional merge failure.
 
 ## Physical iPad release checklist
 
@@ -331,8 +364,8 @@ Latest verified result on September 14, 2026:
 
 ## Next planned release
 
-The next device build should include Brighton's upstream commit `d44b97b` and
-the September 14 family-edition merge resolution. Before installing it, repeat
+The next device build should include Brighton's upstream commit `ebe1aab` and
+the September 17 family-edition merge resolution. Before installing it, repeat
 the physical iPad release checklist rather than reusing an older Godot export
 or Xcode snapshot.
 

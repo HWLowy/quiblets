@@ -6,14 +6,14 @@ func _initialize() -> void:
 	var expected_species := ["Plip","Swellit","Spriggle","Frondle","Vinee","Bloomie","Sparko","Scorchit","Fistor","Carapuff","Burlow","Stackle","Shelter","Mimbit","Pidler","Gloopit","Blubber","Cysicle","Gagglet","Gaggle"]
 	var expected_types := ["Water","Water","Green","Green","Green","Green","Fire","Fire","Psychic","Psychic","Earth","Earth","Normal","Normal","Normal","Poison","Air","Ice","Air","Air"]
 	var expected_learnsets := [
-		["Water Shot","Bubble Shot","Splash Dash","Backwash","Water Burst","Rain Drop","Spray"],
+		["Water Shot","Water Jet","Splash Dash","Backwash","Water Burst","Rain Drop","Spray"],
 		["Water Shot","Water Jet","Hydro Shot","Breaker","Riptide","Undertow","Whirlpool","Wave Rush","Tidal Wave","Water Spout","Downpour","Tsunami"],
 		["Leaf Shot","Seed Pop","Sprout","Thorn Burst","Spore Cloud","Seed Mine","Soothing Scent"],
 		["Leaf Shot","Vine Whip","Vine Spear","Rootbind","Thorn Burst","Sprout","Seed Pop","Overgrowth","Root Slam","Growth Spurt","Seed Mine"],
 		["Vine Whip","Vine Spear","Vine Grab","Rootbind","Thorn Burst","Sprout","Seed Mine","Root Slam","Leech Bloom"],
 		["Healing Bloom","Pollen Puff","Soothing Scent","Spore Cloud","Thorn Armor","Cocoon","Last Bloom"],
 		["Fireball","Flame Burst","Spark Burst","Flare","Flame Dash","Flame Pillar","Ignite"],
-		["Fireball","Flame Burst","Flare","Flame Dash","Blazing Rush","Fire Trail","Flame Wave","Firestorm","Inferno","Flame Pillar","Ignite","Combust"],
+		["Fireball","Flame Burst","Flare","Flame Dash","Blazing Rush","Flame Wave","Firestorm","Inferno","Flame Pillar","Ignite","Meteor Ember"],
 		["Mind Jab","Psycho Punch","Fist Barrage","Helping Hand"],
 		["Psy Bolt","Psychic Push","Telekinesis","Psychic Pull","Psy Barrier","Gravity Well","Mind Squeeze","Psy Wall","Psy Bounce","Puff Grab","Mind Pop"],
 		["Rock Toss","Quake","Mud Shot","Pitfall","Sinkhole","Burrow","Groundbreaker","Dust Cloud","Dig Punch","Dust-Up","Tunneling Charge"],
@@ -161,8 +161,8 @@ func _initialize() -> void:
 	var typed_slot_count:int=game.roster[game.selected_roster].power_slot_types.size()
 	assert(power_slot_type_icons.size()==typed_slot_count and power_slot_type_icons.all(func(icon):return icon.size==Vector2(27.5,25) and icon.position==(icon.get_parent().size-icon.size)*.5),"Health and Attack slot indicators should be 1.25× their previous size and centered without resizing their slots")
 	assert(game.content.find_child("StoneEquipmentMenu",true,false)!=null and game.content.find_child("MoveStonePlaque",true,false)==null and game.content.find_child("PowerStonePlaque",true,false)==null,"Move Stone and Power Stone slots should share one equipment menu")
-	assert(game.content.find_children("MoveStoneSlot*","",true,false).all(func(slot):return slot.size==Vector2(59.0625,59.0625)),"Move Stone slots should be scaled to 0.9× their previous size")
-	var fitted_slot_probe:=Control.new();fitted_slot_probe.size=Vector2(59.0625,59.0625);game.add_fitted_move_stone(fitted_slot_probe,"echo");var fitted_icon_probe:TextureRect=fitted_slot_probe.get_child(0)
+	assert(game.content.find_children("MoveStoneSlot*","",true,false).all(func(slot):return slot.size==Vector2(48,48)),"Move Stone slots should use Bright's compact equipment layout")
+	var fitted_slot_probe:=Control.new();fitted_slot_probe.size=Vector2(48,48);game.add_fitted_move_stone(fitted_slot_probe,"echo");var fitted_icon_probe:TextureRect=fitted_slot_probe.get_child(0)
 	assert(fitted_icon_probe.position==Vector2.ZERO and fitted_icon_probe.size==fitted_slot_probe.size,"A fitted Move Stone should occupy the entire Move Stone slot")
 	fitted_slot_probe.free()
 	var equipment_menu:Panel=game.content.find_child("StoneEquipmentMenu",true,false);var editable_move_icons:Array=game.content.find_children("EditableMoveIcon*","",true,false)
@@ -188,7 +188,9 @@ func _initialize() -> void:
 			assert(control_rect.position.x>=20 and control_rect.end.x<=600,"Move groups should stay inside the equipment menu")
 			for next_control in range(control_index+1,layout_controls.size()):assert(not control_rect.intersects(layout_controls[next_control].get_rect()),"Packed move icons and slots must not overlap")
 		var fitted_power_grid:Control=game.content.find_child("PowerStoneGrid",true,false)
-		assert(fitted_power_grid.position.x==20 and fitted_power_grid.position.y+fitted_power_grid.size.y*fitted_power_grid.scale.y<=452.1,"The left-aligned Power Stone grid should stay below all move rows and inside the menu")
+		var move_rows_bottom:=0.0
+		for layout_control in layout_controls:move_rows_bottom=maxf(move_rows_bottom,layout_control.get_rect().end.y)
+		assert(fitted_power_grid.position.x==20 and fitted_power_grid.position.y>=move_rows_bottom and fitted_power_grid.position.y+fitted_power_grid.size.y*fitted_power_grid.scale.y<=fitted_power_grid.get_parent().size.y-11.9,"The left-aligned Power Stone grid should stay below all move rows and inside Bright's scrollable equipment menu")
 	game.roster[game.selected_roster].moves=moves_before_layout_test;game.show_quiblet_edit();await process_frame
 	var first_move_before:Dictionary=game.roster[game.selected_roster].moves[0].duplicate(true);var second_move_before:Dictionary=game.roster[game.selected_roster].moves[1].duplicate(true)
 	game.roster[game.selected_roster].moves[0].slots=2;game.roster[game.selected_roster].moves[0].stones=["echo"];game.show_quiblet_edit();await process_frame
@@ -209,7 +211,7 @@ func _initialize() -> void:
 	var move_description:RichTextLabel=move_overlay.find_child("MoveInfoDescription",true,false)
 	assert(move_overlay!=null and move_overlay.find_child("MoveInfoLargeIcon",true,false)!=null and move_info_labels.any(func(entry):return entry.text==inspected_entry.name) and move_description!=null and move_description.text==GameData.MOVES[inspected_entry.name].desc and move_description.autowrap_mode!=TextServer.AUTOWRAP_OFF and not move_description.scroll_active and move_info_labels.any(func(entry):return entry.text.begins_with("Base cooldown:")) and move_info_labels.any(func(entry):return entry.text.begins_with("Base damage:")) and move_overlay.find_children("SupportedMoveStoneIcon*","",true,false).size()==supported_count,"Clicking a move icon should open its dimmed detail menu with wrapped description, stats, large icon, and compatible Move Stones")
 	move_overlay.find_child("BackButton",true,false).pressed.emit();await process_frame
-	assert(game.move_stone_display_texture("link_from:Water Burst").resource_path=="res://textures/MoveStones/LinkStoneOcupied.png" and game.move_stone_display_texture("link:Bubble Shot").resource_path==GameData.stone_info("link").texture,"Only the destination side of a linked move should use the occupied Link Stone texture")
+	assert(game.move_stone_display_texture("link_from:Water Burst").resource_path=="res://textures/MoveStones/LinkStoneOcupied.png" and game.move_stone_display_texture("link:Water Jet").resource_path==GameData.stone_info("link").texture,"Only the destination side of a linked move should use the occupied Link Stone texture")
 	assert(game.roster[game.selected_roster].power_slot_types.all(func(value):return value in ["Health","Attack","Flex"]),"Every power slot has a fixed Health, Attack, or Flex type")
 	var inventory_tabs:Array=game.content.find_children("StoneTab*","Button",true,false)
 	assert(inventory_tabs.size()==3 and game.content.find_child("StoneTabHealth",true,false)!=null and game.content.find_child("StoneTabAttack",true,false)!=null and game.content.find_child("StoneTabMoves",true,false)!=null,"The equipment inventory should have Health, Attack, and Move Stone tabs")
@@ -257,10 +259,10 @@ func _initialize() -> void:
 	assert(equipped_drag_icon.position+equipped_drag_icon.size*.5==Vector2.ZERO,"Equipped Move Stone drag previews must also center the stone on the cursor")
 	move_stone_drag_preview.free()
 	game.finish_equipment_drag();await process_frame
-	game.move_stone_inventory["echo"]=20;game.stone_inventory_tab="Moves";game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
+	game.move_stone_inventory["echo"]=30;game.stone_inventory_tab="Moves";game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
 	var stone_panel:Panel=game.content.find_child("StoneInventory",true,false);var stone_dots:Label=stone_panel.find_child("PageDots",true,false);var stone_next:Button=stone_panel.find_child("NextPage",true,false)
-	assert(game.content.find_children("StoneInventoryCard*","",true,false).size()==18 and stone_dots.text.contains("○") and not stone_next.disabled,"A full stone page should show eighteen icon squares and multiple page dots")
-	stone_next.pressed.emit();await process_frame;assert(game.stone_inventory_page==1 and game.content.find_children("StoneInventoryCard*","",true,false).size()==2,"The stone next-page arrow should open the remaining icon squares")
+	assert(game.content.find_children("StoneInventoryCard*","",true,false).size()==24 and stone_dots.text.contains("○") and not stone_next.disabled,"A full stone page should show Bright's four rows of icon squares and multiple page dots")
+	stone_next.pressed.emit();await process_frame;assert(game.stone_inventory_page==1 and game.content.find_children("StoneInventoryCard*","",true,false).size()==6,"The stone next-page arrow should open the remaining icon squares")
 	game.move_stone_inventory["echo"]=1;game.stone_inventory_page=0;game.show_quiblet_edit();await process_frame
 	var sharing_info:Dictionary=GameData.stone_info("sharing");game.select_inventory_stone({"kind":"move_stone","effect":"sharing","display_name":sharing_info.name});await process_frame
 	var stone_detail_title:Label=game.content.find_child("StoneDetailTitle",true,false);var stone_detail_description:RichTextLabel=game.content.find_child("StoneDetailDescription",true,false)

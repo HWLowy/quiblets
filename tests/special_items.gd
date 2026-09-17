@@ -27,19 +27,19 @@ func run()->void:
 		check(use_button!=null and not use_button.disabled,"Selecting owned %s offers an enabled USE button"%item)
 	# Fixture Quiblet: three moves, one remembered move, a fitted stone.
 	var q:Dictionary=game.roster[0];q.level=10;q.exp=0;q.prodigy=false;q.health_charms=0;q.attack_charms=0;q.flex_health=0;q.flex_attack=0
-	q.moves=[{"name":"Water Jet","slots":2,"stones":["echo"]},{"name":"Water Shot","slots":1,"stones":[]},{"name":"Bubble Shot","slots":1,"stones":[]}];q.memory=["Water Jet","Water Shot","Bubble Shot","Bubble Trap"]
+	q.moves=[{"name":"Water Jet","slots":2,"stones":["echo"]},{"name":"Water Shot","slots":1,"stones":[]},{"name":"Water Burst","slots":1,"stones":[]}];q.memory=["Water Jet","Water Shot","Water Burst","Whirlpool"]
 	while game.roster.size()<3:game.roster.append(GameData.make_quiblet(game.roster.size(),5))
 	game.team_indices.clear();for index in [0,1,2]:game.team_indices.append(index)
 	game.roster[1].level=20;game.roster[2].level=30
 	game.show_item_use("Memory Fruit");await process_frame
 	check(game.screen=="item_use" and back_buttons_bottom_right(game) and game.content.find_child("UseItemButton",true,false).disabled,"The USE screen should open with the item unusable until a target is chosen")
-	game.item_use.roster_index=0;game.item_use.memory_move="Bubble Trap";game.show_item_use("Memory Fruit");await process_frame
-	check(not game.content.find_child("UseItemButton",true,false).disabled and game.remembered_moves(q)==["Bubble Trap"],"Memory Fruit should list only forgotten moves")
+	game.item_use.roster_index=0;game.item_use.memory_move="Whirlpool";game.show_item_use("Memory Fruit");await process_frame
+	check(not game.content.find_child("UseItemButton",true,false).disabled and game.remembered_moves(q)==["Whirlpool"],"Memory Fruit should list only forgotten moves")
 	game.apply_item_use();await process_frame
-	check(q.moves.size()==4 and q.moves[-1].name=="Bubble Trap" and game.special_items["Memory Fruit"]==2,"Memory Fruit should restore a forgotten move into a free slot")
-	q.moves[-1].name="Bubble Shot";q.moves[2].name="Splash Dash";q.moves[2].stones=["heavy"];game.move_stone_inventory["heavy"]=0
-	game.begin_item_use("Memory Fruit");game.item_use.roster_index=0;game.item_use.memory_move="Bubble Trap";game.item_use.move_index=2;game.apply_item_use();await process_frame
-	check(q.moves[2].name=="Bubble Trap" and q.moves[2].stones.is_empty() and int(game.move_stone_inventory.get("heavy",0))==1,"Memory Fruit on a full moveset should replace the chosen slot and refund its stones")
+	check(q.moves.size()==4 and q.moves[-1].name=="Whirlpool" and game.special_items["Memory Fruit"]==2,"Memory Fruit should restore a forgotten move into a free slot")
+	q.moves[-1].name="Water Burst";q.moves[2].name="Splash Dash";q.moves[2].stones=["heavy"];game.move_stone_inventory["heavy"]=0
+	game.begin_item_use("Memory Fruit");game.item_use.roster_index=0;game.item_use.memory_move="Whirlpool";game.item_use.move_index=2;game.apply_item_use();await process_frame
+	check(q.moves[2].name=="Whirlpool" and q.moves[2].stones.is_empty() and int(game.move_stone_inventory.get("heavy",0))==1,"Memory Fruit on a full moveset should replace the chosen slot and refund its stones")
 	game.begin_item_use("Move Crystal");game.item_use.roster_index=0;game.item_use.move_index=1;game.apply_item_use();await process_frame
 	check(int(q.moves[1].slots)==2 and game.special_items["Move Crystal"]==2,"Move Crystal should add one Move Stone slot")
 	q.moves[1].slots=8;game.begin_item_use("Move Crystal");game.item_use.roster_index=0;game.item_use.move_index=1
@@ -109,7 +109,7 @@ func run()->void:
 	var workshop_button:Button=game.content.find_child("OpenStoneWorkshopFromQuiblet",true,false)
 	check(game.screen=="edit_quiblet" and workshop_button!=null and workshop_button.text=="STONE WORKSHOP","An inventory stone should link to the centralized Stone Workshop")
 	workshop_button.pressed.emit();await process_frame
-	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.stone_recycler_selected==[0],"The Quiblet shortcut should open the Recycler tab with the inspected stone selected")
+	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.stone_recycler_selected.size()==1 and game.stone_recycler_selected.has(0),"The Quiblet shortcut should open the Recycler tab with the inspected stone selected")
 	game.leave_stone_workshop();await process_frame
 	check(game.screen=="edit_quiblet","Leaving a Stone Workshop opened from a Quiblet should return to that Quiblet")
 	var fitted:Dictionary=GameData.normalize_power_stone(GameData.make_power_stone("Attack",1,[]));fitted.kind="power_stone";fitted.display_name="Fitted stone"
