@@ -117,6 +117,9 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 - The Quiblet equipment screen separates Health, Attack, and Move Stones into
   tabs instead of one long mixed list.
 - The previous- and next-page arrows sit together, away from the Back button.
+- The persistent **Stone Workshop** button sits deliberately in the upper-right
+  inventory frame above those tabs, rather than straddling the two equipment
+  frames.
 - Selecting an unfitted Power Stone on a Quiblet now offers **Stone Workshop**
   instead of a separate recycling action. It opens the Recycler tab with that
   stone selected, and Back returns to the same Quiblet.

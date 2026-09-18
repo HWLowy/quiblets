@@ -883,7 +883,6 @@ func show_quiblet_edit()->void:
 	var left:=Control.new();left.position=Vector2(28,68);left.size=Vector2(620,624);content.add_child(left)
 	var compact_info:=panel(Rect2(0,0,620,146),Color("#fffdf7"),18);left.add_child(compact_info);build_quiblet_info(compact_info,q,false)
 	compact_info.position.y=14;compact_info.scale=Vector2.ONE*.8
-	add_button(left,"STONE WORKSHOP",Vector2(468,44),Vector2(152,56),func():open_stone_workshop("combine","edit_quiblet"),"leaf").name="OpenStoneWorkshopFromEquipment"
 	var equipment_scroll:=ScrollContainer.new();equipment_scroll.name="EquipmentScroll";equipment_scroll.position=Vector2(0,160);equipment_scroll.size=Vector2(620,464);equipment_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;left.add_child(equipment_scroll)
 	var equipment_menu:=panel(Rect2(0,0,604,464),Color("#5f5f5f"),16);equipment_scroll.add_child(equipment_menu);equipment_menu.name="StoneEquipmentMenu";equipment_menu.custom_minimum_size=Vector2(604,464)
 	var move_position:=Vector2(20,4)
@@ -908,6 +907,7 @@ func show_quiblet_edit()->void:
 	add_button(equipment_menu,"AUTO SET",Vector2(actions_x,actions_y),Vector2(210,32),auto_set_power_stones,"gold").name="AutoSetPowerStones"
 	add_button(equipment_menu,"REMOVE ALL",Vector2(actions_x,actions_y+40),Vector2(210,32),remove_all_power_stones,"plain").name="RemoveAllPowerStones"
 	var right:=panel(Rect2(668,68,584,624),Color("#f6f8f6"),18);content.add_child(right);right.name="StoneInventory"
+	add_button(right,"STONE WORKSHOP",Vector2(390,14),Vector2(176,40),func():open_stone_workshop("combine","edit_quiblet"),"leaf").name="OpenStoneWorkshopFromEquipment"
 	build_stone_detail(right)
 	var separator:=HSeparator.new();separator.position=Vector2(16,200);separator.size=Vector2(552,2);right.add_child(separator)
 	build_equipment_inventory(right)
@@ -1017,9 +1017,9 @@ func power_stone_inventory_data(stone:Dictionary,inventory_index:int)->Dictionar
 
 func build_stone_detail(parent:Control)->void:
 	if selected_inventory_item.is_empty():
-		label(parent,"SELECT A STONE",Vector2(18,22),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,int(parent.size.x-36))
+		label(parent,"SELECT A STONE",Vector2(18,22),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,350)
 		label(parent,"Select a stone below to see what it does.",Vector2(22,61),12,GameData.COLORS.muted,false,HORIZONTAL_ALIGNMENT_CENTER,int(parent.size.x-44));return
-	var data:=selected_inventory_item;var title:=str(data.get("display_name","Stone"));var title_label:=label(parent,title,Vector2(18,18),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_CENTER,int(parent.size.x-36));title_label.name="StoneDetailTitle"
+	var data:=selected_inventory_item;var title:=str(data.get("display_name","Stone"));var title_label:=label(parent,title,Vector2(18,18),18,GameData.COLORS.ink,true,HORIZONTAL_ALIGNMENT_LEFT,350);title_label.name="StoneDetailTitle"
 	if data.kind=="charm":
 		add_charm_icon(parent,str(data.charm_type),Vector2(20,54),Vector2(64,64))
 		label(parent,"+6.5% max HP" if data.charm_type=="Health" else "+6% Attack",Vector2(100,60),16,GameData.COLORS.ink,true)

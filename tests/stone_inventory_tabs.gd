@@ -26,7 +26,8 @@ func run()->void:
 	var fitted_slot:=GameData.first_power_slot_accepting(fitted_owner,"Health");fitted_owner.power_slot_stones[fitted_slot]=stone("Health",120)
 	game.selected_roster=0;game.stone_inventory_tab="Health";game.show_quiblet_edit();await process_frame
 	check(game.content.find_children("StoneTab*","Button",true,false).size()==3,"The equipment inventory needs exactly three category tabs")
-	var tab:Button=game.content.find_child("StoneTabHealth",true,false);var grid:GridContainer=game.content.find_child("StoneIconGrid",true,false);var navigation:Control=game.content.find_child("PageNavigation",true,false);var panel:Panel=game.content.find_child("StoneInventory",true,false)
+	var tab:Button=game.content.find_child("StoneTabHealth",true,false);var grid:GridContainer=game.content.find_child("StoneIconGrid",true,false);var navigation:Control=game.content.find_child("PageNavigation",true,false);var panel:Panel=game.content.find_child("StoneInventory",true,false);var workshop_button:Button=game.content.find_child("OpenStoneWorkshopFromEquipment",true,false)
+	check(workshop_button!=null and workshop_button.get_parent()==panel and workshop_button.position.y+workshop_button.size.y<tab.position.y,"The Stone Workshop button should sit intentionally in the top of the right inventory frame above its tabs")
 	check(tab.position.y+tab.size.y<grid.position.y and grid.position.y+grid.size.y<=navigation.position.y and navigation.position.y+navigation.size.y<=panel.size.y,"Tabs, stone cards, and page controls should fit without overlapping")
 	var visible:=cards(game)
 	check(visible.size()==3 and visible.all(func(card):return game.stone_inventory_category(card.item_data)=="health") and visible[0].item_data.power==120 and visible[1].item_data.power==50,"The Health tab should include fitted Health stones and sort strongest first")
