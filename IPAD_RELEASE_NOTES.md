@@ -32,6 +32,8 @@ by the preservation and verification checks below.
 - Touch input emulates mouse input for existing controls.
 - The iOS export is ARM64 and exports an Xcode project for signing and device
   installation.
+- The minimum deployment target is iOS 15.0, which is supported by Xcode 27
+  while remaining far below the family iPads' current operating-system version.
 - The current preview bundle identifier is `com.hwl.quiblets.preview`.
 - Automatic development signing uses an Apple Development identity. Do not set
   the Release identity to Apple Distribution for a direct development build;
