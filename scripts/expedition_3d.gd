@@ -31,6 +31,7 @@ var camera:Camera3D
 var camera_focus:=Vector3.ZERO
 var obstacles:Array[Rect2]=[Rect2(-3.8,-4.8,2.3,2.1),Rect2(2.2,1.2,3.0,1.7),Rect2(6.0,-4.5,2.1,2.4)]
 var berry_nodes:Array[Node3D]=[]
+var berry_guide:MeshInstance3D
 # Open-field layout: the playable rectangle, sunken river cells, the land
 # bridges that cross them, and interior wall cells with their block heights.
 var field_rect:Rect2i=Rect2i()
@@ -168,7 +169,8 @@ func begin(new_team:Array,level:int,use_fortune:bool,use_challenger:bool)->void:
 		var actor:=QuibletActor3D.new();actor.setup(team_data[i],false,0,i);actor.position=Vector3(start.x-.6+(i%2)*1.2,0,start.y+(i-2)*.9);place_actor(actor);team.append(actor)
 	if is_instance_valid(camera):
 		camera_focus=Vector3(start.x,0,start.y);camera.global_position=camera_focus+Vector3(0,13,15);camera.look_at(camera_focus+Vector3(0,.45,0),Vector3.UP)
-	if not is_grove():prepare_spawn_points()
+	if is_grove():build_berry_guide()
+	else:prepare_spawn_points()
 	spawn_wave()
 
 func place_actor(actor:QuibletActor3D)->void:
@@ -1905,6 +1907,7 @@ func _process(delta:float)->void:
 	update_wall_fades(delta)
 	update_clouds(delta)
 	update_waterfall_bubbles()
+	update_berry_guide()
 	# Fighters ride the rolling ground (and the bridge arches).
 	for actor in team+enemies:
 		if is_instance_valid(actor):actor.position.y=flight_height_at(Vector2(actor.position.x,actor.position.z)) if actor.floats_over_water() else terrain_height_at(Vector2(actor.position.x,actor.position.z))
@@ -1971,6 +1974,39 @@ func update_grove()->void:
 	if advance_index>=0 or grove_zone>=zones.size()-1:return
 	if enemies.any(func(enemy):return enemy.current_hp>0 and enemy.get_meta("alerted",false)):return
 	if not berry_nodes.any(func(patch):return int(patch.get_meta("zone",0))<=grove_zone):grove_zone+=1;begin_advance(grove_zone)
+
+func build_berry_guide()->void:
+	berry_guide=MeshInstance3D.new();berry_guide.name="NearestBerryGuide"
+	var mesh:=ImmediateMesh.new();mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	# A slim shaft and broad head pointing along local +Z.
+	for vertex in [Vector3(-.10,0,-.55),Vector3(.10,0,-.55),Vector3(.10,0,.30),Vector3(-.10,0,-.55),Vector3(.10,0,.30),Vector3(-.10,0,.30),Vector3(-.40,0,.22),Vector3(.40,0,.22),Vector3(0,0,1.05)]:mesh.surface_add_vertex(vertex)
+	mesh.surface_end();berry_guide.mesh=mesh
+	var material:=StandardMaterial3D.new();material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA;material.cull_mode=BaseMaterial3D.CULL_DISABLED;material.no_depth_test=true;material.albedo_color=Color(1.0,.86,.34,.62)
+	berry_guide.material_override=material;berry_guide.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;add_child(berry_guide)
+	update_berry_guide()
+
+func nearest_berry_patch(from:Vector2)->Node3D:
+	var nearest_patch:Node3D=null;var best:=INF
+	for patch in berry_nodes:
+		if not is_instance_valid(patch):continue
+		var distance:=from.distance_squared_to(Vector2(patch.position.x,patch.position.z))
+		if distance<best:best=distance;nearest_patch=patch
+	return nearest_patch
+
+func update_berry_guide()->void:
+	if not is_instance_valid(berry_guide):return
+	var living:Array=team.filter(func(actor):return actor.current_hp>0)
+	if ended or living.is_empty() or berry_nodes.is_empty():berry_guide.visible=false;return
+	var from:=Vector2.ZERO
+	for member in living:from+=Vector2(member.position.x,member.position.z)
+	from/=living.size()
+	var patch:=nearest_berry_patch(from)
+	if patch==null:berry_guide.visible=false;return
+	var toward:=Vector2(patch.position.x,patch.position.z)-from
+	if toward.length_squared()<.01:berry_guide.visible=false;return
+	var direction:=toward.normalized();var point:=from+direction*2.25
+	berry_guide.visible=true;berry_guide.position=Vector3(point.x,terrain_height_at(point)+.32,point.y);berry_guide.rotation.y=atan2(direction.x,direction.y)
+	var pulse:=1.0+sin(elapsed*3.0)*.06;berry_guide.scale=Vector3.ONE*pulse
 
 func begin_advance(target_zone:int)->void:
 	advance_waypoints.clear();advance_index=-1
@@ -2159,13 +2195,26 @@ func fresh_encounter_ground(point:Vector2)->bool:
 		if point.distance_to(old)<ENCOUNTER_REUSE_RADIUS:return false
 	return true
 
+func exploration_sweep_target(from:Vector2)->Vector2:
+	# Successive encounters cross the island in a gentle S-curve. The step size
+	# remains bounded by the existing 22–32 unit walk limits, but the preferred
+	# locations expose both sides of the landscape instead of clustering in one
+	# narrow strip or sending the team to arbitrary far corners.
+	if field_rect.size.x<=0 or field_rect.size.y<=0:return from+Vector2(SET_TARGET_WALK_DISTANCE,0)
+	var progress:=clampf(float(wave)/float(maxi(1,max_waves)),0.0,1.0)
+	var left:=float(field_rect.position.x)+8.0;var right:=float(field_rect.end.x)-8.0
+	var direction:=1.0 if (stage_area_index+stage_node_index)%2==0 else -1.0
+	var side_span:=float(field_rect.size.y)*.18
+	return Vector2(lerpf(left,right,progress),sin(progress*TAU)*side_span*direction)
+
 func encounter_preference(from:Vector2,point:Vector2,wants_bridge:bool)->float:
 	var freshness:=12.0
 	for old in spawn_points:freshness=minf(freshness,point.distance_to(old))
-	# Distance dominates; direction, fresh ground, and scenery only break ties.
-	var preference:=clampf(point.x-from.x,-12.0,12.0)*.12+freshness*.08
-	if point.x>from.x+1.0:preference+=8.0
-	elif point.x<from.x-1.0:preference-=8.0
+	# The medium walking-distance score still dominates. Within that ring, favor
+	# the next point of a broad island sweep, fresh scenery, and modest forward
+	# progress. Small lateral/backward turns remain possible without long hikes.
+	var preference:=-point.distance_to(exploration_sweep_target(from))*.55+freshness*.12+clampf(point.x-from.x,-12.0,12.0)*.06
+	if point.x<from.x-6.0:preference-=4.0
 	if wants_bridge and near_encounter_bridge(point):preference+=.6
 	return preference
 
@@ -2182,7 +2231,7 @@ func pick_spawn_point(for_boss:=false)->int:
 		var preference:=encounter_preference(from,point,wants_bridge)
 		# Progress is measured from the last encounter, not where ranged fighters
 		# stopped short of it. Prefer a new encounter beyond that location.
-		if point.x>previous.x+3.0:preference+=20.0
+		if point.x>previous.x+3.0:preference+=4.0
 		var score:=preference-absf(estimate-SET_TARGET_WALK_DISTANCE)*4.0
 		candidates.append({"point":point,"score":score,"preference":preference})
 	candidates.sort_custom(func(a,b):return a.score>b.score)
@@ -2204,7 +2253,7 @@ func pick_spawn_point(for_boss:=false)->int:
 		fallback.sort_custom(func(a,b):return a.error<b.error)
 		for candidate in fallback.slice(0,32):
 			var distance:=encounter_walk_distance(from,candidate.point)
-			if distance>SET_MAX_WALK_DISTANCE:continue
+			if distance<SET_MIN_TEAM_DISTANCE or distance>SET_MAX_WALK_DISTANCE:continue
 			var score:=-absf(distance-SET_TARGET_WALK_DISTANCE)*4.0+encounter_preference(from,candidate.point,wants_bridge)
 			if fresh_encounter_ground(candidate.point):score+=100.0
 			if score>best:best=score;chosen=candidate.point

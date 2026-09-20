@@ -102,10 +102,11 @@ func run()->void:
 	check(game.expedition.enemies.is_empty() and game.expedition.intermission>0.0 and loot_after-loot_before>=escorts_before+1,"A fallen boss should rout its escorts and each should drop its loot")
 	game.expedition.finish(false);await process_frame;game.show_area_levels(0);game.area_progress[0]=8
 	game.start_area_level(0,3);await process_frame
-	check_loop(game.expedition_music,"res://audio/Music/BerryGrove.wav","Berry Grove did not use its looping theme")
+	check_loop(game.expedition_music,"res://audio/Music/Expedition.wav","Berry Grove should use the regular Expedition theme")
+	check(game.expedition.get_node_or_null("NearestBerryGuide")!=null,"Berry Grove needs a guide toward the nearest remaining patch")
 	game.expedition.finish(false);await process_frame;game.show_area_levels(0)
 	game.start_area_level(0,7);await process_frame
-	check_loop(game.expedition_music,"res://audio/Music/BerryGrove.wav","Optional Berry Grove did not use the Berry Grove theme")
+	check_loop(game.expedition_music,"res://audio/Music/Expedition.wav","Optional Berry Grove should use the regular Expedition theme")
 	game.expedition.finish(false);await process_frame;game.show_area_levels(0)
 	game.start_area_level(0,6);await process_frame
 	check_loop(game.expedition_music,"res://audio/Music/Expedition.wav","A Boss level should open on the Expedition theme until its boss grunts")

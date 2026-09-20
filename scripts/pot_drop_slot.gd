@@ -16,13 +16,18 @@ func setup(new_game:Node,index:int,new_kind:String,current_data:Variant)->void:
 		if slot_kind!="ingredient":tooltip_text=("Spice" if slot_kind=="spice" else "Special ingredient")+" slot"
 	else:
 		var display:Dictionary=game.cooking_slot_display(slot_kind,content_data)
+		if slot_kind=="spice":
+			var backing:=Panel.new();backing.name="SpiceSlotBacking";backing.position=Vector2.ZERO;backing.size=size;backing.mouse_filter=Control.MOUSE_FILTER_IGNORE
+			var style:=StyleBoxFlat.new();style.bg_color=Color(display.color,.30);style.border_color=display.color;style.set_border_width_all(2);style.set_corner_radius_all(9);backing.add_theme_stylebox_override("panel",style);add_child(backing)
 		var texture:=GameData.ingredient_texture(display) if slot_kind=="ingredient" else null
 		var texture_path:=str(display.get("texture",""))
 		if texture==null and not texture_path.is_empty() and ResourceLoader.exists(texture_path):texture=load(texture_path)
 		if texture!=null:
-			var icon:=Sprite2D.new();icon.texture=texture;icon.position=size*.5;var fit:=minf((size.x-12.0)/texture.get_width(),(size.y-12.0)/texture.get_height());icon.scale=Vector2.ONE*fit;add_child(icon)
+			var icon:=Sprite2D.new();icon.texture=texture;icon.position=size*.5;var inset:=28.0 if slot_kind=="spice" else 12.0;var fit:=minf((size.x-inset)/texture.get_width(),(size.y-inset)/texture.get_height());icon.scale=Vector2.ONE*fit;add_child(icon)
 		else:
 			var icon:=Label.new();icon.text=display.icon;icon.position=Vector2.ZERO;icon.size=size;icon.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;icon.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;icon.add_theme_font_size_override("font_size",34);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(icon)
+		if slot_kind=="spice":
+			var name_label:=Label.new();name_label.name="PlacedSpiceName";name_label.text="%s\n%s"%[str(display.name),str(display.quality)];name_label.position=Vector2(2,38);name_label.size=Vector2(size.x-4,25);name_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;name_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;name_label.add_theme_font_size_override("font_size",8);name_label.add_theme_color_override("font_color",GameData.COLORS.ink);name_label.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(name_label)
 		if slot_kind!="ingredient":tooltip_text=display.tooltip+" — tap for details"
 
 func _can_drop_data(_at_position:Vector2,data:Variant)->bool:

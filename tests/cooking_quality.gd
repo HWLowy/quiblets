@@ -145,6 +145,12 @@ func run()->void:
 	for spice_name in GameData.SPICES:check(not GameData.spice_stat_bonuses(spice_name,"great").is_empty() and GameData.spice_stat_text(spice_name,"great")!="","Every spice should carry a stat bonus: "+spice_name)
 	check(GameData.spice_stat_text("Hot Flakes","special")=="+6.0% Attack" and GameData.spice_stat_text("Brain Salt","great")=="−3.0% move cooldowns","Spice stat text is wrong")
 	game.spice_slots[0]={"name":"Iron Flakes","quality":"special"};game.spice_slots[1]={"name":"Gentle Herb","quality":"basic"}
+	game.spice_inventory["Punch Pepper"]["great"]=1;game.show_cooking();await process_frame
+	check(GameData.SPICES.values().all(func(spice):return ResourceLoader.exists(str(spice.texture))),"Every spice should have a dependable image icon")
+	var punch_cards:Array=game.content.find_children("*","CookingItemCard",true,false).filter(func(card):return card.drag_payload.get("name","")=="Punch Pepper" and card.drag_payload.get("quality","")=="great")
+	check(punch_cards.size()==1 and punch_cards[0].find_child("SpiceTexture",true,false)!=null and punch_cards[0].find_child("SpiceName",true,false).text=="Punch Pepper" and punch_cards[0].find_child("SpiceQuality",true,false).text=="(Great)","Cooking should show Punch Pepper (Great) beside its icon without requiring a tooltip")
+	var placed_spice_names:Array=game.content.find_children("PlacedSpiceName","Label",true,false)
+	check(game.content.find_children("SpiceSlotBacking","Panel",true,false).size()==2 and placed_spice_names.any(func(item):return item.text=="Iron Flakes\nSpecial") and placed_spice_names.any(func(item):return item.text=="Gentle Herb\nBasic"),"Placed spices should keep their icon, quality color, name, and quality in the pot")
 	var seasoning:Dictionary=game.spice_arrival_bonuses()
 	check(is_equal_approx(float(seasoning.get("max_hp",0.0)),.06+.007) and is_equal_approx(float(seasoning.get("healing",0.0)),.0175),"Two placed spices should stack their arrival bonuses")
 	var plain:Dictionary=GameData.make_quiblet(3,8);var seasoned:Dictionary=GameData.make_quiblet(3,8);seasoned.spice_bonuses=seasoning

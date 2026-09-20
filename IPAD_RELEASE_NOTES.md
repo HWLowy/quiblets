@@ -5,7 +5,7 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 19, 2026**
+Last updated: **September 20, 2026**
 Latest integrated upstream commit: **`148cac2`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
@@ -52,6 +52,34 @@ Godot can temporarily change this setting after running an individual preview
 scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 
 ## Completed work
+
+### September 20 gameplay and interface polish
+
+- Berry Groves now use the regular Expedition music. The unfinished
+  `BerryGrove.wav` asset remains in the repository for Brighton to revisit,
+  but it is no longer selected during play.
+- Expedition result screens consume the complete touch and advance only after
+  release, with the screen change deferred until that input is finished. A tap
+  at the bottom of the rewards screen can therefore no longer pass through to
+  a Quiblet portrait on the Expeditions map.
+- Tapping a newly arrived Quiblet's reveal now opens that exact Quiblet's full
+  inspection/equipment screen. Back returns to the next arrival when a stew
+  produced several Quiblets, or to Base Camp after the final arrival.
+- Every spice now has a dependable image-backed icon. Cooking cards display
+  both the spice name and quality—for example, `Punch Pepper (Great)`—without
+  requiring a hover or long press.
+- A spice placed in the pot keeps its icon, quality color, name, and quality in
+  the slot instead of appearing invisible.
+- Regular battle locations still respect the 22–32-unit walking budget, but
+  now favor a broad S-shaped sweep across the island. This exposes more of the
+  map and ingredient scenery while avoiding the old cross-map hikes.
+- Berry Groves show a small, translucent gold ground arrow beside the team. It
+  continuously turns toward the nearest remaining berry patch and disappears
+  when every patch is collected.
+- Revitalizing now requires four selected stones: the first is improved and
+  the other three unfitted Power Stones are consumed. The Workshop explains
+  the cost, distinguishes the target from the consumed stones, previews the
+  result, and prevents applying an incomplete selection.
 
 ### iPad controls and interaction
 
@@ -345,7 +373,16 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 19, 2026:
+Latest verified result on September 20, 2026:
+
+- September 20 navigation flows: **10 checks, 0 failures**
+- September 20 cooking and spice display: **160 checks, 0 failures**
+- September 20 Stone Workshop and three-stone revitalizing cost:
+  **170 checks, 0 failures**
+- September 20 encounter pacing and 22–32-unit walk bounds:
+  **371 checks, 0 failures**
+- September 20 music states, including regular Expedition music in both Berry
+  Grove types: **62 checks, 0 failures**
 
 - Power Stone recycling and both entry routes: **22 checks, 0 failures**
 - Stone Workshop: **169 checks, 0 failures**

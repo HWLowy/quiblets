@@ -112,12 +112,15 @@ func run()->void:
 	check(game.highest_reached_stage_level()==reachable and reachable<int(game.area_level_data(0,6).level),"Only reached nodes count toward revitalizer power")
 	game.area_progress[0]=0;check(game.highest_reached_stage_level()==int(game.area_level_data(0,0).level),"A fresh game has reached only the first level");game.area_progress[0]=7
 	game.power_stone_inventory[1].power=10
+	for value in [stone("Attack",40,[]),stone("Health",50,[]),stone("Attack",60,[])]:game.power_stone_inventory.append(value)
 	game.set_stone_workshop_mode("revitalize");game.workshop_pick_stone(1);await process_frame
 	var expected:int=maxi(10,GameData.revitalizer_base_power(game.highest_reached_stage_level()))
-	check(game.workshop_problem()=="" if expected>10 else game.workshop_problem()!="","Revitalizer availability follows the formula")
+	check(game.workshop_problem().contains("3 more Power Stones"),"Revitalizer should require three consumed stones after its target")
 	if expected>10:
+		for index in [3,4,5]:game.workshop_pick_stone(index)
+		check(game.workshop_problem()=="" and not game.content.find_child("WorkshopApply",true,false).disabled,"One target plus three consumed stones should enable the Revitalizer")
 		game.apply_stone_workshop();await process_frame
-		check(int(game.power_stone_inventory[1].power)>=expected and int(game.power_stone_inventory[1].power)<=expected+5 and game.power_stone_inventory[1].bonuses.is_empty() and game.stone_workshop.selected.is_empty(),"Revitalizing sets the formula power")
+		check(game.power_stone_inventory.size()==3 and int(game.power_stone_inventory[1].power)>=expected and int(game.power_stone_inventory[1].power)<=expected+5 and game.power_stone_inventory[1].bonuses.is_empty() and game.stone_workshop.selected.is_empty(),"Revitalizing sets the formula power and consumes exactly three other stones")
 		game.workshop_pick_stone(1);check(game.workshop_problem()!="","A revitalized stone cannot be revitalized again at the same progress")
 	# Converter.
 	game.set_stone_workshop_mode("convert");game.workshop_pick_stone(0);await process_frame
@@ -147,7 +150,8 @@ func run()->void:
 	game.selected_roster=0;game.select_inventory_stone(game.fitted_power_stone_data(owner_q.power_slot_stones[owner_slot],0,owner_slot));await process_frame
 	check(game.content.find_child("FittedStoneNote",true,false)!=null,"The fitted-stone detail should name its owner")
 	check(game.content.find_child("OpenStoneWorkshopFromQuiblet",true,false)==null and game.content.find_child("RemoveFittedStone",true,false)!=null,"A fitted stone should keep its direct removal action instead of a workshop shortcut")
-	check(game.content.find_children("FittedOwnerBadge","",true,false).size()==1,"The active type tab should show one owner badge on the fitted stone")
+	var active_owner_badges:Array=game.content.find_children("FittedOwnerBadge","",true,false)
+	check(active_owner_badges.size()==1,"The active type tab should show one owner badge on the fitted stone (found %d)"%active_owner_badges.size())
 	owner_q.power_slot_stones[owner_slot]={}
 	# The removed charms are gone from drops and the item list.
 	check(not GameData.SPECIAL_ITEM_DROP_WEIGHTS.has("Reforger Charm") and not game.special_items.has("Conversion Charm"),"The stone charms no longer exist")

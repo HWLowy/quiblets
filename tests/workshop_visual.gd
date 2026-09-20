@@ -19,7 +19,8 @@ func run()->void:
 	game.apply_stone_workshop();game.set_stone_workshop_mode("reforge");game.workshop_pick_stone(4);game.stone_workshop.bonus_index=1;game.workshop_pick_stone(0)
 	await create_timer(.4).timeout;await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("/private/tmp/quiblets-workshop-reforge.png")
-	game.set_stone_workshop_mode("revitalize");game.workshop_pick_stone(2)
+	game.set_stone_workshop_mode("revitalize")
+	for index in [2,5,6,7]:game.workshop_pick_stone(index)
 	await create_timer(.4).timeout;await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("/private/tmp/quiblets-workshop-revitalize.png")
 	print("QUIBLETS_WORKSHOP_VISUAL_OK")

@@ -34,5 +34,16 @@ func run()->void:
 	game.completed_stew_result={"recipe":"Plain Stew","quality":"Decent","arrivals":["New Bloomie Lv.12"],"arrival_species":[5],"arrival_uids":[arrival.uid],"leftovers":0}
 	game.show_cook_result();await process_frame
 	check(game.screen=="quiblet_arrival" and is_instance_valid(game.arrival_sequence) and game.arrival_sequence.arrivals.size()==1 and game.arrival_sequence.arrivals[0].uid==arrival.uid,"The animated result should reveal the exact newly arrived Quiblet")
+	game.arrival_sequence.queue_free();game.arrival_sequence=null
+	game.inspect_arriving_quiblet(arrival,false);await process_frame
+	check(game.screen=="edit_quiblet" and game.selected_roster==game.roster.size()-1 and game.quiblet_edit_return_screen=="camp","Inspecting a new arrival should open that exact Quiblet's moves and Power Stone screen")
+	game.leave_quiblet_edit();await process_frame
+	check(game.screen=="camp","Leaving the final arrival inspection should return to camp")
+	# Result taps advance only after release and cannot click through into a team portrait.
+	game.last_result={"victory":true,"loot":{},"move_stones":{},"power_stones":[],"special":"","extra_specials":[],"discovered_areas":[]};game.show_expedition_haul();await process_frame
+	var press:=InputEventMouseButton.new();press.button_index=MOUSE_BUTTON_LEFT;press.position=Vector2(770,640);press.pressed=true
+	var release:=InputEventMouseButton.new();release.button_index=MOUSE_BUTTON_LEFT;release.position=press.position;release.pressed=false
+	game._input(press);game._input(release);await process_frame;await process_frame
+	check(game.screen=="map","A result-screen tap should stop on the Expeditions map instead of opening a Quiblet underneath it")
 	print("QUIBLETS_NAVIGATION_FLOWS_OK checks=%d failures=%d"%[checks,failures])
 	quit(0 if failures==0 else 1)

@@ -166,9 +166,30 @@ func show_next()->void:
 	var slide:=create_tween();slide.tween_property(cards,"position:x",26.0,.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await slide.finished
 	game.play_quiblet_arrival_music(game.is_rare_arrival(int(q.species)))
-	hint=game.label(game.content,"Click to continue" if arrivals.size()==1 else "Click to continue  •  %d / %d"%[index+1,arrivals.size()],Vector2(820,644),18,Color.WHITE,true,HORIZONTAL_ALIGNMENT_CENTER,360)
+	hint=game.label(game.content,"Tap to inspect this Quiblet" if arrivals.size()==1 else "Tap to inspect  •  %d / %d"%[index+1,arrivals.size()],Vector2(790,644),18,Color.WHITE,true,HORIZONTAL_ALIGNMENT_CENTER,420)
 	hint.add_theme_color_override("font_outline_color",Color("#20382d"));hint.add_theme_constant_override("outline_size",6)
 	can_continue=true
+
+func inspect_current()->void:
+	if not can_continue or revealing_stew:return
+	can_continue=false
+	if is_instance_valid(hint):hint.queue_free()
+	game.quiblet_arrival_music.stop()
+	var q:Dictionary=arrivals[index]
+	# The inspected arrival becomes a normal camp resident before the reveal
+	# node is removed. Any remaining arrivals stay pending and resume when the
+	# player backs out of this Quiblet's equipment screen.
+	if is_instance_valid(actor):game.world_root.get_node("CampResidents").adopt_resident(q,actor,model)
+	for visitor in visitors:
+		if visitor.actor!=actor and is_instance_valid(visitor.actor):visitor.actor.queue_free()
+	visitors.clear()
+	game.camera_3d.transform=saved_camera;game.camera_3d.fov=saved_fov
+	actor=null;model=null;index+=1
+	game.completed_stew_result.revealed_count=index;game.save_game()
+	var more:=index<arrivals.size()
+	game.arrival_sequence=null
+	queue_free()
+	game.inspect_arriving_quiblet.call_deferred(q,more)
 
 func advance()->void:
 	if not can_continue:return
