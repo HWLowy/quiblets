@@ -53,15 +53,16 @@ func run()->void:
 	# Data rules.
 	var plip:=GameData.make_quiblet(0,8);var swellit:=GameData.make_quiblet(1,12);var spriggle:=GameData.make_quiblet(2,8);var sparko:=GameData.make_quiblet(6,20)
 	check(GameData.quiblet_relationship(plip,GameData.make_quiblet(0,3))=="species" and GameData.quiblet_relationship(plip,swellit)=="family" and GameData.quiblet_relationship(spriggle,GameData.make_quiblet(4,5))=="type" and GameData.quiblet_relationship(plip,sparko)=="none","Relationships should rank species, evolution family, type, then none")
-	check(GameData.ingredient_compatibility(0,"Dewmelon")=="excellent" and GameData.ingredient_compatibility(0,"Sparkfruit")=="good" and GameData.ingredient_compatibility(0,"Knobroot")=="neutral" and GameData.ingredient_compatibility(0,"Crystalcorn")=="poor" and GameData.ingredient_compatibility(0,"Emberpepper")=="opposing","Water ingredient compatibility")
+	check(GameData.ingredient_compatibility(0,"Dewmelon")=="excellent" and GameData.ingredient_compatibility(0,"Sparkfruit")=="poor" and GameData.ingredient_compatibility(0,"Knobroot")=="neutral" and GameData.ingredient_compatibility(0,"Crystalcorn")=="poor" and GameData.ingredient_compatibility(0,"Emberpepper")=="opposing","Water ingredient compatibility follows Bright's revised multi-tag ingredients, checking poor tags before good tags")
 	check(GameData.ingredient_compatibility(6,"Emberpepper")=="excellent" and GameData.ingredient_compatibility(6,"Frostberry")=="opposing" and GameData.ingredient_compatibility(2,"Bitterleaf")=="excellent" and GameData.ingredient_compatibility(2,"Brinepod")=="poor","Fire and Green ingredient compatibility")
 	var spriggle_twin:=GameData.make_quiblet(2,8);var frondle:=GameData.make_quiblet(3,12);var vinee:=GameData.make_quiblet(4,4)
 	var helpers:Array=[spriggle_twin,frondle,vinee,sparko]
 	check(is_equal_approx(GameData.move_training_chance(spriggle,helpers),67.0),"Move chance: 5 base + 25 species + 20 family + 12 type + 5 unrelated")
 	check(is_equal_approx(GameData.move_training_chance(spriggle,[]),5.0) and is_equal_approx(GameData.move_training_chance(spriggle,[spriggle_twin,spriggle_twin,spriggle_twin,spriggle_twin]),95.0),"Move chance starts at 5% and caps at 95%")
-	var expected_exp:=roundi(GameData.total_exp(spriggle_twin)*.15*1.75)+roundi(GameData.total_exp(frondle)*.15*1.5)+roundi(GameData.total_exp(vinee)*.15*1.2)+roundi(GameData.total_exp(sparko)*.15*1.0)
-	check(GameData.exp_training_reward(spriggle,helpers)==expected_exp and expected_exp>0 and GameData.total_exp(GameData.make_quiblet(0,1))==0,"EXP reward is 15% of each helper's lifetime EXP times its relationship multiplier")
-	check(is_equal_approx(GameData.helper_preservation_chance(spriggle,["Bitterleaf","Bumbleberry"]),5.0+2.5) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Sunplum","Sunplum"]),10.0+10.0) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Emberpepper"]),1.25) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["","Brinepod"]),3.75),"Preservation chance sums the reduced rarity × compatibility odds per added food")
+	var expected_exp:=0
+	for helper in helpers:expected_exp+=GameData.exp_training_helper_reward(spriggle,helper)
+	check(GameData.exp_training_reward(spriggle,helpers)==expected_exp and expected_exp>0,"EXP reward sums helpers using the unchanged starting trainee")
+	check(is_equal_approx(GameData.helper_preservation_chance(spriggle,["Bitterleaf","Bumbleberry"]),5.0+2.5) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Sunplum","Sunplum"]),5.0+5.0) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Emberpepper"]),1.25) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["","Brinepod"]),3.75),"Preservation chance sums the reduced rarity × compatibility odds per added food")
 	var pool:=GameData.retrain_pool(spriggle)
 	check(pool.size()==GameData.learnset(2).size()-spriggle.moves.size() and pool.all(func(name):return not spriggle.moves.any(func(move):return move.name==name)),"The retrain pool excludes every move currently in a slot")
 	var picks:={}
@@ -115,7 +116,7 @@ func run()->void:
 	for node_name in ["TrainingModeMove","TrainingModeExp","TraineeSlot","HelperSlot0","HelperSlot1","HelperSlot2","HelperSlot3","FoodSlot0","FoodSlot1","TrainingIngredientTray","TrainingSummary","TrainButton"]:
 		check(game.content.find_child(node_name,true,false)!=null,"Training screen is missing "+node_name)
 	var ingredient_grid:GridContainer=game.content.find_child("TrainingIngredientGrid",true,false)
-	check(ingredient_grid!=null and ingredient_grid.columns==8 and ingredient_grid.get_child_count()==GameData.INGREDIENTS.size() and ingredient_grid.get_child_count()==16,"The training ingredient list is two rows of eight")
+	check(ingredient_grid!=null and ingredient_grid.columns==7 and ingredient_grid.get_child_count()==GameData.INGREDIENTS.size(),"The training ingredient list includes every ingredient in Bright's expanded seven-column grid")
 	var tray_panel:Control=game.content.find_child("TrainingIngredientTray",true,false);var tray_section:Control=game.content.find_child("TrainingSection",false,false)
 	check(tray_panel.position.x+tray_panel.size.x<=tray_section.size.x and ingredient_grid.size.x*ingredient_grid.scale.x<=tray_panel.size.x and ingredient_grid.size.y*ingredient_grid.scale.y<=tray_panel.size.y,"The ingredient grid fits inside its tray and section")
 	game.ingredients["Bumbleberry"]=3
@@ -196,19 +197,20 @@ func run()->void:
 	var extra:=GameData.make_quiblet(2,3);game.roster.append(extra);var extra_index:int=game.roster.size()-1
 	game.assign_training_slot("trainee",0,quiblet(game.find_roster_index(trainee.uid)));game.assign_training_slot("helper",0,quiblet(extra_index))
 	game.set_training_mode("exp");await process_frame
-	check(game.content.find_child("TrainingMoves",true,false)==null and game.content.find_child("TrainingSummary",true,false).text.contains("EXP"),"EXP training previews the EXP gain without a retrain panel")
-	var expected_reward:=roundi(GameData.total_exp(extra)*.15*1.75);var exp_before:int=GameData.total_exp(trainee);var size_before:int=game.roster.size()
+	check(game.content.find_child("TrainingMoves",true,false)==null and game.content.find_child("TrainingBeforeXP",true,false)!=null and game.content.find_child("TrainingAfterXP",true,false)!=null,"EXP training previews the before-and-after XP bars without a retrain panel")
+	var expected_reward:=GameData.exp_training_helper_reward(trainee,extra);var exp_before:int=GameData.total_exp(trainee);var size_before:int=game.roster.size()
 	game.run_training();await process_frame
 	result=game.last_training_result
-	check(result.success and int(result.exp)==expected_reward and GameData.total_exp(trainee)==exp_before+expected_reward,"EXP training always succeeds and awards 15% of the helper's lifetime EXP times its multiplier")
+	check(result.success and int(result.exp)==expected_reward and GameData.total_exp(trainee)==exp_before+expected_reward,"EXP training always succeeds and awards the calculated helper reward")
 	check(result.consumed.size()==1 and result.preserved.is_empty() and game.roster.size()==size_before-1 and game.find_roster_index(extra.uid)==-1,"Without food the helper is consumed")
 	var keeper:=GameData.make_quiblet(2,3);game.roster.append(keeper)
 	game.assign_training_slot("helper",0,quiblet(game.roster.size()-1));game.ingredients["Sunplum"]=2
 	game.assign_training_slot("food",0,{"kind":"ingredient","name":"Sunplum"});game.assign_training_slot("food",1,{"kind":"ingredient","name":"Sunplum"})
+	var keeper_chance:=GameData.helper_preservation_chance(keeper,["Sunplum","Sunplum"])
 	var forced:=RandomNumberGenerator.new();forced.seed=1
 	while true:
 		forced.seed+=1;var probe_seed:int=forced.seed;var value:=forced.randf();forced.seed=probe_seed
-		if value*100.0<20.0:break
+		if value*100.0<keeper_chance:break
 	game.training_rng=forced;size_before=game.roster.size()
 	game.run_training();await process_frame
 	result=game.last_training_result

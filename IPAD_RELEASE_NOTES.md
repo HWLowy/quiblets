@@ -5,8 +5,8 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 17, 2026**
-Latest integrated upstream commit: **`ebe1aab`**
+Last updated: **September 19, 2026**
+Latest integrated upstream commit: **`148cac2`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -77,8 +77,8 @@ not supplied a replacement:
 - **Plip:** Brighton's imported model, with the family water-drop portrait as
   a fallback where no supplied icon is available.
 - **Swellit:** smooth family-edition water-drop silhouette and portrait.
-- **Spriggle:** leaf-stem crown, curved vine arms, and removal of the old horns.
-- **Frondle:** leaf-stem crown and smooth curved vine arms.
+- **Spriggle:** Brighton's current imported model and supplied portrait.
+- **Frondle:** Brighton's current imported model and supplied portrait.
 - **Bloomie:** Brighton's imported flower-hat model and supplied portrait.
 - **Sparko:** larger three-height flame crown while retaining its tail.
 - **Scorchit:** larger rounded three-height flame crown blended into its body.
@@ -95,6 +95,9 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 - Added the Power Stone Recycler as a fifth tab inside the Stone Workshop, so
   combining, revitalizing, converting, reforging, and recycling all live in one
   stone-management destination.
+- Brighton's red **Recycle** button remains on each Quiblet's equipment screen.
+  It opens the same shared Workshop Recycler and returns to that Quiblet when
+  the Workshop closes, so recycling is available from both useful locations.
 - Up to fifteen unfitted stones can be selected and recycled together.
 - Every Stone Workshop mode remembers its own inventory position when a stone
   is selected or removed. The Recycler also remembers the position in its
@@ -120,9 +123,9 @@ preview scenes are in `docs/ipad-visual-overrides.md`.
 - The persistent **Stone Workshop** button sits deliberately in the upper-right
   inventory frame above those tabs, rather than straddling the two equipment
   frames.
-- Selecting an unfitted Power Stone on a Quiblet now offers **Stone Workshop**
-  instead of a separate recycling action. It opens the Recycler tab with that
-  stone selected, and Back returns to the same Quiblet.
+- Selecting an unfitted Power Stone on a Quiblet also offers **Stone Workshop**.
+  It opens the Recycler tab with that stone selected, and Back returns to the
+  same Quiblet.
 
 ### Navigation and player flow
 
@@ -152,13 +155,28 @@ radius attacks a dependable farming shortcut.
 
 ### Training balance
 
-The initial training values allowed a small group of retained helpers to be
-reused often enough to rapidly overpower an entire main team. The September 12
-rebalance changed two parts of the system:
+Brighton's September 19 catch-up system replaces the former lifetime-EXP
+transfer formula. Each helper now has a relationship-adjusted target based on
+its level. If the trainee is below that target, training moves it 90% of the
+remaining distance toward it; a trainee already at or above the target receives
+a smaller normal reward. The family edition deliberately lowers Brighton's
+relationship factors while keeping that mechanism:
 
-- EXP Training now transfers 15% of each helper's lifetime EXP before applying
-  the relationship multiplier, down from 30%.
-- Every food-based helper-retention chance was halved.
+| Helper relationship | Family target | Brighton's original target |
+| --- | ---: | ---: |
+| Same species | 50% | 92% |
+| Same evolution family | 46% | 89% |
+| Same type | 42% | 85% |
+| Unrelated | 38% | 80% |
+
+A level-10 trainee with one level-100 same-species helper therefore reaches
+about level 46, compared with about level 84 under Brighton's original factors
+and about level 51 under the previous family formula. This remains intentionally
+generous enough to make a valuable helper exciting without letting a retained
+group instantly power-level an entire team.
+
+Every food-based helper-retention chance remains halved from the original
+values:
 
 Current retention chance added by each food:
 
@@ -266,6 +284,24 @@ affect future training only; they do not reduce levels already earned.
   each selected stone before destroying it. All five Workshop modes preserve
   their list positions while selecting and processing stones.
 
+### September 19, 2026
+
+- **`148cac2` upstream — Add Quiblets and camp gardening, refine moves and
+  equipment UI**
+  Adopted Brighton's camp garden, new Quiblets and imported models, expanded
+  ingredients and recipes, team presets, fitted-equipment display, evolution
+  pause, move refinements, and regional-map cache.
+- **Family-edition merge resolution — this merge commit**
+  Kept Brighton's new artwork and gameplay decisions wherever they overlap the
+  family branch. Preserved iPad touch scrolling, Workshop list positions,
+  explicit expedition-level selection, cooking and workshop shortcuts, iOS
+  settings, and visual fallbacks where Brighton has no supplied art. The red
+  equipment-screen Recycler and the Workshop Recycler now open the same shared
+  system. Brighton's EXP catch-up mechanism remains, with reduced 50/46/42/38%
+  relationship targets and the family edition's reduced helper-retention odds.
+  The cached regional map returned in about 14 ms after a roughly 1.4-second
+  first build in the headless regression check.
+
 ## Upstream merge policy
 
 When Brighton pushes new work:
@@ -307,9 +343,9 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 17, 2026:
+Latest verified result on September 19, 2026:
 
-- Power Stone recycling: **19 checks, 0 failures**
+- Power Stone recycling and both entry routes: **22 checks, 0 failures**
 - Stone Workshop: **169 checks, 0 failures**
 - Stone Workshop scroll memory: **8 checks, 0 failures**
 - Navigation flows: **7 checks, 0 failures**
@@ -318,6 +354,8 @@ Latest verified result on September 17, 2026:
 - Menu updates: **7,494 checks, 0 failures**
 - Animated arrivals: **passed**
 - Training: **77 checks, 0 failures**
+- EXP catch-up formula and reduced relationship targets: **passed**
+- Regional-map cache, team refresh, and discovery invalidation: **passed**
 - Full smoke check: **passed**
 - Brighton's charm equipment, camp navigation, regional progression and
   discovery, and training-equipment refund checks: **passed**
@@ -367,8 +405,8 @@ as a functional merge failure.
 
 ## Next planned release
 
-The next device build should include Brighton's upstream commit `ebe1aab` and
-the September 17 family-edition merge resolution. Before installing it, repeat
+The next device build should include Brighton's upstream commit `148cac2` and
+the September 19 family-edition merge resolution. Before installing it, repeat
 the physical iPad release checklist rather than reusing an older Godot export
 or Xcode snapshot.
 

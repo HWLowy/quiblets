@@ -48,6 +48,13 @@ func run()->void:
 
 	game.power_stone_inventory.clear()
 	for index in 17:game.power_stone_inventory.append(stone("Health" if index%2==0 else "Attack",index%5+1,["Health"] if index%3==0 else []))
+	game.selected_roster=0;game.show_quiblet_edit();await process_frame
+	var equipment_recycler:Button=game.content.find_child("OpenPowerStoneRecycler",true,false)
+	check(equipment_recycler!=null,"The individual Quiblet equipment screen should retain Bright's Recycler entry point")
+	equipment_recycler.pressed.emit();await process_frame
+	check(game.screen=="stone_workshop" and game.stone_workshop.mode=="recycle" and game.stone_workshop_return_screen=="edit_quiblet","Bright's equipment-screen Recycler button should open the shared Workshop Recycler")
+	game.leave_stone_workshop();await process_frame
+	check(game.screen=="edit_quiblet","Leaving the Recycler opened from equipment should return to that Quiblet")
 	game.show_resources();await process_frame
 	check(game.content.find_child("OpenStoneWorkshop",true,false)!=null and game.content.find_child("OpenStoneRecycler",true,false)==null,"Resources should expose recycling inside the Stone Workshop instead of as a separate destination")
 	game.begin_stone_recycler();await process_frame

@@ -3,8 +3,8 @@ extends SceneTree
 func _initialize() -> void:
 	assert(ProjectSettings.get_setting("display/window/stretch/aspect")=="keep" and ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch",false),"iPad builds should preserve the 16:9 layout and translate touch input into the game's pointer controls")
 	assert(ProjectSettings.get_setting("application/run/main_scene")=="res://main.tscn","Exports must start the full Quiblets game rather than a temporary preview or test scene")
-	var expected_species := ["Plip","Swellit","Spriggle","Frondle","Vinee","Bloomie","Sparko","Scorchit","Fistor","Carapuff","Burlow","Stackle","Shelter","Mimbit","Pidler","Gloopit","Blubber","Cysicle","Gagglet","Gaggle"]
-	var expected_types := ["Water","Water","Green","Green","Green","Green","Fire","Fire","Psychic","Psychic","Earth","Earth","Normal","Normal","Normal","Poison","Air","Ice","Air","Air"]
+	var expected_species := ["Plip","Swellit","Spriggle","Frondle","Vinee","Bloomie","Sparko","Scorchit","Fistor","Carapuff","Burlow","Stackle","Shellmie","Mimbit","Pidler","Gloopit","Blubber","Cysicle","Gagglet","Gaggle","Gulper","Tumblet","Miasmum","Sludgle","Arcle","Zippet","Voltick","Electrish"]
+	var expected_types := ["Water","Water","Green","Green","Green","Green","Fire","Fire","Psychic","Psychic","Earth","Earth","Normal","Normal","Normal","Poison","Air","Ice","Air","Air","Poison","Earth","Poison","Poison","Electric","Electric","Electric","Electric"]
 	var expected_learnsets := [
 		["Water Shot","Water Jet","Splash Dash","Backwash","Water Burst","Rain Drop","Spray"],
 		["Water Shot","Water Jet","Hydro Shot","Breaker","Riptide","Undertow","Whirlpool","Wave Rush","Tidal Wave","Water Spout","Downpour","Tsunami"],
@@ -25,9 +25,17 @@ func _initialize() -> void:
 		["Gust","Air Burst","Updraft","Vacuum","Crosswind","Tailwind","Whirlwind","Wind Wall","Downdraft","Cyclone","Deflate"],
 		["Icicle Shot","Ice Spike","Cold Snap","Ice Wall","Frost Patch","Ice Cage","Glacier Rush","Hail","Iceberg","Icicle Mine","Shatter"],
 		["Wingbeat","Honk","Peck","Feather Guard","Tailwind","Scare","Escort","Alarm Honk"],
-		["Wingbeat","Honk","Peck","Feather Guard","Tailwind","Scare","Escort","Alarm Honk","Double Honk","Two-Headed Watch","Cross Peck","Gaggle Rush"]
+		["Wingbeat","Honk","Peck","Feather Guard","Tailwind","Scare","Escort","Alarm Honk","Double Honk","Two-Headed Watch","Cross Peck","Gaggle Rush"],
+		["Gulp","Poison Spit","Poison Bomb","Slosh","Acid Spray","Nectar","Belch","Sour Shot","Dribble","Lid Smack"],
+		["Rollout","Unfurl","Rock Toss","Brace","Rockslide","Pound","Rolling Smash","Stone Skip","Rock Ring","Pebble Spray"],
+		["Noxious Cloud","Fume Burst","Poison Spit","Smog","Nauseate","Toxic Drift","Contaminate","Fume Shot","Pressure Cloud","Miasmum"],
+		["Toxic Touch","Gunk Glob","Sludge Wave","Slime Slide","Slip Slime","Poison Coat","Acid Splash","Nauseate","Mud Shot","Slick Escape"],
+		["Shock Bite","Latch","Live Wire","Static Pulse","Tail Zap","Discharge","Slither","Shock Toss","Amp Drain"],
+		["Zap","Shock Touch","Zip","Jolt Kick","Static Pulse","Flashstep","Friction Dash","Thunderclap","Zigzag"],
+		["Horn Zap","Spark Ram","Clamp","Shock Toss","Ground Scrape","Static Pulse","Discharge","Grounded","Horn Lift","Shock Clamp"],
+		["Tentacle Zap","Static Pulse","Nerve Sting","Shock Net","Live Wire","Jelly Drift","Discharge","Jolt Grab"]
 	]
-	assert(GameData.SPECIES.size()==20 and GameData.LEARNSETS.size()==20,"The roster and learnset table should each contain twenty Quiblets")
+	assert(GameData.SPECIES.size()==28 and GameData.LEARNSETS.size()==28,"The roster and learnset table should each contain twenty-eight Quiblets")
 	for i in expected_species.size():
 		assert(GameData.SPECIES[i].name==expected_species[i] and GameData.SPECIES[i].element==expected_types[i],"Incorrect Quiblet identity at roster index %d"%i)
 		assert(GameData.learnset(i)==expected_learnsets[i],"Incorrect learnset for "+expected_species[i])
@@ -317,17 +325,17 @@ func _initialize() -> void:
 	assert(not bumbleberry_cards.is_empty() and not bumbleberry_cards[0].draggable,"Resources below three should not be draggable")
 	game.ingredients["Bumbleberry"]=bumbleberry_before;game.show_cooking();await process_frame
 	var cooking_ingredient_grid:GridContainer=game.content.find_child("CookingIngredientGrid",true,false)
-	assert(cooking_ingredient_grid!=null and cooking_ingredient_grid.columns==8 and cooking_ingredient_grid.get_child_count()==GameData.INGREDIENTS.size() and game.content.find_child("CookingIngredientScroll",true,false)==null,"Cooking should display all ingredients in a fixed two-row grid without scrolling")
-	assert(cooking_ingredient_grid.get_child(8).position.y>cooking_ingredient_grid.get_child(0).position.y,"Cooking ingredients should occupy two rows")
+	assert(cooking_ingredient_grid!=null and cooking_ingredient_grid.columns==7 and cooking_ingredient_grid.get_child_count()==GameData.INGREDIENTS.size() and game.content.find_child("CookingIngredientScroll",true,false)==null,"Cooking should display all ingredients in Bright's expanded fixed grid without scrolling")
+	assert(cooking_ingredient_grid.get_child(7).position.y>cooking_ingredient_grid.get_child(0).position.y and cooking_ingredient_grid.get_child(14).position.y>cooking_ingredient_grid.get_child(7).position.y,"Cooking ingredients should occupy three compact rows")
 	var ingredient_amount:Label=cooking_ingredient_grid.get_child(0).get_node("IngredientAmount")
-	assert(ingredient_amount.get_theme_font_size("font_size")==13 and ingredient_amount.position.y==56,"Ingredient amounts should be 75% sized and shifted upward")
+	assert(ingredient_amount.get_theme_font_size("font_size")==13 and ingredient_amount.position.y==39,"Ingredient amounts should fit Bright's compact cooking cards")
 	var ingredient_card_style:StyleBoxFlat=cooking_ingredient_grid.get_child(0).get_theme_stylebox("panel")
 	assert(ingredient_card_style.bg_color==Color("#ffffff") and ingredient_card_style.border_color==Color("#d6d6d6"),"Ingredient cards should use white interiors and light-gray outlines")
 	game.select_cooking_ingredient("Knobroot");await process_frame;await process_frame
 	assert(game.content.find_child("CookingIngredientGrid",true,false).get_child_count()==GameData.INGREDIENTS.size(),"Selecting an ingredient should preserve the complete ingredient grid")
 	var selected_item_icon:Control=game.content.find_child("SelectedIngredientIcon",true,false)
 	assert(selected_item_icon!=null and selected_item_icon.size==Vector2(48,66) and selected_item_icon.custom_minimum_size==Vector2.ZERO,"A textured item must stay inside its assigned information-menu icon rectangle")
-	assert(GameData.INGREDIENTS["Sunplum"].texture=="res://textures/Items/SunPlum.png" and GameData.ingredient_texture(GameData.INGREDIENTS["Sunplum"])!=null,"Sunplum should use its item texture")
+	assert(GameData.INGREDIENTS["Sunplum"].texture=="res://textures/Ingredients/SunPlum.png" and GameData.ingredient_texture(GameData.INGREDIENTS["Sunplum"])!=null,"Sunplum should use its item texture")
 	var bumbleberry_texture:=GameData.ingredient_texture(GameData.INGREDIENTS["Bumbleberry"])
 	assert(bumbleberry_texture is AtlasTexture and bumbleberry_texture.get_width()<=512 and bumbleberry_texture.get_height()<=512,"Ingredient artwork should be trimmed to its visible 512×512 content before being fitted")
 	var drop_slots:Array=game.content.find_children("*","PotDropSlot",true,false).filter(func(slot):return slot.slot_kind=="ingredient")
@@ -409,9 +417,9 @@ func _initialize() -> void:
 	var stew_names:Array=[]
 	for stew in GameData.RECIPES:stew_names.append(stew.name)
 	for stew_name in expected_stews:assert(stew_names.has(stew_name),"Missing stew: "+stew_name)
-	assert(GameData.choose_recipe({"Emberpepper":2,"Dewmelon":1,"Curlcap":1,"Brinepod":1}).name=="Hot Stuff","Spicy dry combinations should make Hot Stuff")
-	assert(GameData.choose_recipe({"Sparkfruit":2,"Sunplum":2,"Curlcap":1}).name=="Fancy Feast","Sweet, sour, juicy combinations should make Fancy Feast")
-	assert(GameData.choose_recipe({"Emberpepper":1,"Brinepod":1,"Oldroot":1,"Curlcap":1,"Dewmelon":1}).name=="Mystery Meat","Strange mixed combinations should make Mystery Meat")
+	assert(GameData.choose_recipe({"Emberpepper":2,"Dewmelon":1,"Curlcap":2}).name=="Hot Stuff","Spicy dry combinations should make Hot Stuff")
+	assert(GameData.choose_recipe({"Sunplum":2,"Frostberry":2,"Sparkfruit":1}).name=="Fancy Feast","Sweet, sour, juicy combinations should make Fancy Feast")
+	assert(GameData.choose_recipe({"Puffshroom":2,"Brinepod":2,"Emberpepper":1}).name=="Mystery Meat","Strange mixed combinations should make Mystery Meat")
 	game.show_recipes()
 	await process_frame
 	game.show_training()
