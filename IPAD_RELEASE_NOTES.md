@@ -65,10 +65,10 @@ scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 - Tapping a newly arrived Quiblet's reveal now opens that exact Quiblet's full
   inspection/equipment screen. Back returns to the next arrival when a stew
   produced several Quiblets, or to Base Camp after the final arrival.
-- Every spice now has a dependable image-backed icon. Cooking cards display
-  both the spice name and quality—for example, `Punch Pepper (Great)`—without
-  requiring a hover or long press.
-- A spice placed in the pot keeps its icon, quality color, name, and quality in
+- Every spice consistently uses Bright's original simple symbol. Cooking cards
+  display both the spice name and quality—for example, `Punch Pepper (Great)`—
+  without requiring a hover or long press.
+- A spice placed in the pot keeps its symbol, quality color, name, and quality in
   the slot instead of appearing invisible.
 - Regular battle locations still respect the 22–32-unit walking budget, but
   now favor a broad S-shaped sweep across the island. This exposes more of the

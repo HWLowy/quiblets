@@ -1924,7 +1924,7 @@ func add_spice_icon(parent:Node,spice_name:String,pos:Vector2,icon_size:Vector2,
 	var texture_path:=str(info.get("texture",""))
 	if not texture_path.is_empty() and ResourceLoader.exists(texture_path):
 		var icon:=TextureRect.new();icon.name="SpiceTexture";icon.texture=load(texture_path);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;icon.position=pos;icon.size=icon_size;icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;parent.add_child(icon);return icon
-	return label(parent,str(info.get("icon","?")),pos,roundi(icon_size.y*.58),color,false,HORIZONTAL_ALIGNMENT_CENTER,roundi(icon_size.x))
+	var symbol:=Label.new();symbol.name="SpiceSymbol";symbol.text=str(info.get("icon","?"));symbol.position=pos;symbol.size=icon_size;symbol.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;symbol.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;symbol.add_theme_font_size_override("font_size",roundi(icon_size.y*.52));symbol.add_theme_color_override("font_color",color);symbol.mouse_filter=Control.MOUSE_FILTER_IGNORE;parent.add_child(symbol);return symbol
 
 func add_resource_item_card(grid:Control,id:String,emoji:String,count:int,color:Color)->void:
 	var selected:bool=(selected_resource_item==id)

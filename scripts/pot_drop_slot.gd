@@ -25,7 +25,7 @@ func setup(new_game:Node,index:int,new_kind:String,current_data:Variant)->void:
 		if texture!=null:
 			var icon:=Sprite2D.new();icon.texture=texture;icon.position=size*.5;var inset:=28.0 if slot_kind=="spice" else 12.0;var fit:=minf((size.x-inset)/texture.get_width(),(size.y-inset)/texture.get_height());icon.scale=Vector2.ONE*fit;add_child(icon)
 		else:
-			var icon:=Label.new();icon.text=display.icon;icon.position=Vector2.ZERO;icon.size=size;icon.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;icon.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;icon.add_theme_font_size_override("font_size",34);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(icon)
+			var icon:=Label.new();icon.name="SpiceSymbol" if slot_kind=="spice" else "FallbackIcon";icon.text=display.icon;icon.position=Vector2.ZERO;icon.size=size;icon.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;icon.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;icon.add_theme_font_size_override("font_size",34);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(icon)
 		if slot_kind=="spice":
 			var name_label:=Label.new();name_label.name="PlacedSpiceName";name_label.text="%s\n%s"%[str(display.name),str(display.quality)];name_label.position=Vector2(2,38);name_label.size=Vector2(size.x-4,25);name_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;name_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;name_label.add_theme_font_size_override("font_size",8);name_label.add_theme_color_override("font_color",GameData.COLORS.ink);name_label.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(name_label)
 		if slot_kind!="ingredient":tooltip_text=display.tooltip+" — tap for details"

@@ -1632,14 +1632,14 @@ static func ingredient_texture(info:Dictionary)->Texture2D:
 # quality; it is scaled by spice strength (Basic ×0.35 … Special ×1.5) and uses
 # the same stat keys as Power Stone bonuses, so battle code needs no changes.
 const SPICES := {
-	"Hot Flakes":{"icon":"HF","texture":"res://textures/Ingredients/Emberpepper.png","color":Color("#e75d3f"),"favors":"aggressive / high Attack","bias":"attack","stats":{"attack":.04}},
-	"Iron Flakes":{"icon":"IF","texture":"res://textures/Ingredients/Stonebean.png","color":Color("#7c8793"),"favors":"tough / high HP","bias":"hp","stats":{"max_hp":.04}},
-	"Swift Spice":{"icon":"SW","texture":"res://textures/Ingredients/Dewmelon.png","color":Color("#4ebbc5"),"favors":"fast / mobile","bias":"swift","stats":{"speed":.05}},
-	"Punch Pepper":{"icon":"PP","texture":"res://textures/Ingredients/Emberpepper.png","color":Color("#d77b34"),"favors":"melee / physical-move users","bias":"melee","stats":{"attack":.02,"resist":.02}},
-	"Brain Salt":{"icon":"BS","texture":"res://textures/Ingredients/Glowcap.png","color":Color("#a77bd4"),"favors":"psychic / unusual-move users","bias":"unusual","stats":{"cooldown":.03}},
-	"Sharp Salt":{"icon":"SH","texture":"res://textures/Ingredients/Crystalcorn.png","color":Color("#6aa6da"),"favors":"ranged / projectile users","bias":"ranged","stats":{"crit":.03}},
-	"Gentle Herb":{"icon":"GH","texture":"res://textures/Ingredients/BitterLeaf.png","color":Color("#68a96b"),"favors":"support / healing users","bias":"support","stats":{"healing":.05,"max_hp":.02}},
-	"Rare Spice":{"icon":"RS","texture":"res://textures/Ingredients/CrinkleBerry.png","color":Color("#d6a83e"),"favors":"rarer members of the stew pool","bias":"rare","stats":{"max_hp":.015,"attack":.015}}
+	"Hot Flakes":{"icon":"♨","color":Color("#e75d3f"),"favors":"aggressive / high Attack","bias":"attack","stats":{"attack":.04}},
+	"Iron Flakes":{"icon":"▰","color":Color("#7c8793"),"favors":"tough / high HP","bias":"hp","stats":{"max_hp":.04}},
+	"Swift Spice":{"icon":"➤","color":Color("#4ebbc5"),"favors":"fast / mobile","bias":"swift","stats":{"speed":.05}},
+	"Punch Pepper":{"icon":"✊","color":Color("#d77b34"),"favors":"melee / physical-move users","bias":"melee","stats":{"attack":.02,"resist":.02}},
+	"Brain Salt":{"icon":"◉","color":Color("#a77bd4"),"favors":"psychic / unusual-move users","bias":"unusual","stats":{"cooldown":.03}},
+	"Sharp Salt":{"icon":"➶","color":Color("#6aa6da"),"favors":"ranged / projectile users","bias":"ranged","stats":{"crit":.03}},
+	"Gentle Herb":{"icon":"❧","color":Color("#68a96b"),"favors":"support / healing users","bias":"support","stats":{"healing":.05,"max_hp":.02}},
+	"Rare Spice":{"icon":"✦","color":Color("#d6a83e"),"favors":"rarer members of the stew pool","bias":"rare","stats":{"max_hp":.015,"attack":.015}}
 }
 
 # Spice quality → strength multiplier for both the arrival bias and stat bonus.
