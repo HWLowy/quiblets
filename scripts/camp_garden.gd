@@ -15,6 +15,19 @@ var ingredients:Dictionary:
 func select_cooking_ingredient(_ingredient:String)->void:pass
 func can_place(item:String,index:int)->bool:
 	return GameData.INGREDIENTS.has(item) and (int(ingredients.get(item,0))>0 or slots[index]==item)
+func can_drop_slot(data:Dictionary,index:int)->bool:
+	var item:=str(data.get("name",""));var source:=int(data.get("garden_slot",-1))
+	return GameData.INGREDIENTS.has(item) and ((source>=0 and source<slots.size() and slots[source]==item) or can_place(item,index))
+func slot_drag_payload(index:int)->Dictionary:
+	if index<0 or index>=slots.size() or str(slots[index]).is_empty():return {}
+	return {"kind":"ingredient","name":str(slots[index]),"label":str(slots[index]),"garden_slot":index}
+func drop_slot(data:Dictionary,index:int)->void:
+	if not can_drop_slot(data,index):return
+	var source:=int(data.get("garden_slot",-1))
+	if source>=0 and source<slots.size():slots[source]=""
+	slots[index]=str(data.name)
+func remove_slot(index:int)->void:
+	if index>=0 and index<slots.size():slots[index]=""
 static func fertilizer_bonus(points:int,roll:float)->int:
 	return int(points/3)+int(roll<float(points%3)*.1)
 func advance()->void:
@@ -70,7 +83,7 @@ func draw_menu()->void:
 		var card:=IngredientDragCard.new();menu.add_child(card);card.position=Vector2(22+(i%7)*75,108+int(i/7)*87);card.setup(self,str(names[i]),game.unlocked_ingredients.has(names[i]),1,78);card.tooltip_text=str(names[i])
 	for i in 5:
 		game.label(menu,"Seed" if i==0 else "Fertilizer",Vector2(23+i*106,376),13,GameData.COLORS.ink,false,HORIZONTAL_ALIGNMENT_CENTER,90)
-		var slot=preload("res://scripts/garden_slot.gd").new();slot.garden=self;slot.index=i;slot.position=Vector2(30+i*106,402);slot.size=Vector2(76,76);menu.add_child(slot);slot.tooltip_text="Right-click to remove"
+		var slot=preload("res://scripts/garden_slot.gd").new();slot.garden=self;slot.index=i;slot.position=Vector2(30+i*106,402);slot.size=Vector2(76,76);menu.add_child(slot);slot.tooltip_text="Drag out to remove"
 		var style:=StyleBoxFlat.new();style.bg_color=Color("#e0eadc");style.border_color=GameData.COLORS.leaf;style.set_border_width_all(2);style.set_corner_radius_all(14);slot.add_theme_stylebox_override("panel",style)
 		if not str(slots[i]).is_empty():game.add_ingredient_icon(slot,GameData.INGREDIENTS[slots[i]],Vector2(6,6),Vector2(64,64),34)
 	game.add_button(menu,"Cancel",Vector2(26,515),Vector2(230,50),close)

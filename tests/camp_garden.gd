@@ -9,6 +9,13 @@ func run():
   assert(garden.fertilizer_bonus(points,0.0)==int(points/3)+int(points%3>0))
  game.ingredients.Bumbleberry=5;game.ingredients.Sunplum=4
  game.unlocked_ingredients.append("Bumbleberry")
+ garden.slots=["Bumbleberry","Sunplum","","",""]
+ var payload:Dictionary=garden.slot_drag_payload(1)
+ assert(payload.name=="Sunplum" and payload.garden_slot==1 and garden.can_drop_slot(payload,2))
+ garden.drop_slot(payload,2)
+ assert(garden.slots[1].is_empty() and garden.slots[2]=="Sunplum")
+ garden.remove_slot(2)
+ assert(garden.slots[2].is_empty() and game.ingredients.Sunplum==4)
  garden.slots=["Bumbleberry","Sunplum","Sunplum","Sunplum",""]
  assert(garden.commit_plant())
  assert(game.ingredients.Bumbleberry==4 and game.ingredients.Sunplum==1)
@@ -30,5 +37,5 @@ func run():
  saved=game.save_data();saved.erase("garden_plots");game.apply_save_data(saved)
  assert(game.garden_plots==[{},{},{},{}])
  game.queue_free();await process_frame
- print("Garden: fertilizer thresholds, consumption, growth, harvest, duplicate protection, menus, and in-memory persistence passed")
+ print("Garden: removable seed/fertilizer slots, thresholds, consumption, growth, harvest, duplicate protection, menus, and in-memory persistence passed")
  quit()

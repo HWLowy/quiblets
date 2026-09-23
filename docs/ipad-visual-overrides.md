@@ -11,11 +11,12 @@ Status: approved family edition, maintained on `ipad-release` until Brighton rep
 - `tests/quiblet_portrait_preview.tscn` displays the matching portraits together.
 - `tests/visual_overrides.gd` verifies that each override remains connected after a merge.
 
-## Current overrides
+## Current overrides and fallbacks
 
-- Plip and Swellit: smooth water-drop body.
-- Spriggle: full leaf-stem crown and curved vine arms in its established leaf colour; the old ears are removed so the crown reads cleanly.
-- Frondle: leaf-stem crown and curved vine arms.
+- Swellit: smooth water-drop body. Plip now uses Brighton's supplied model.
+- Spriggle and Frondle: Brighton's supplied models take precedence. Their
+  procedural leaf-crown and vine-arm definitions remain only as fallbacks if
+  those supplied model references are ever removed.
 - Bloomie: flat six-petal Healing Bloom flower hat.
 - Sparko: original tail plus a larger three-peak flame crown.
 - Scorchit: larger rounded three-peak flame crown with varied heights.

@@ -5,8 +5,8 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 20, 2026**
-Latest integrated upstream commit: **`148cac2`**
+Last updated: **September 23, 2026**
+Latest integrated upstream commit: **`0008aee`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -52,6 +52,33 @@ Godot can temporarily change this setting after running an individual preview
 scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 
 ## Completed work
+
+### September 23 upstream update and iPad corrections
+
+- Integrated Brighton's `0008aee` update: four new imported creature models,
+  regional encounter pools, expanded recipes, smoother expedition hills,
+  fading foreground trees, fainted-creature collision changes, and refined
+  combat and expedition visuals.
+- Adopted Brighton's repaired `BerryGrove.wav` loop and his screen-edge berry
+  patch indicators for both Grove types. These replace the family branch's
+  temporary regular Expedition music and nearest-patch ground arrow.
+- Restored every spice presentation surface to Brighton's original/default
+  compact symbol treatment. Cooking inventory cards, pot slots, Workshop
+  previews, information panels, and recycler rewards no longer use the family
+  branch's larger name/quality overlays that failed to render reliably on iPad.
+  Spice names, qualities, tooltips, effects, and inventory data are unchanged.
+- A placed garden seed or fertilizer can now be dragged to another planting
+  slot or dragged away to remove it. Removing it before planting does not
+  consume inventory, so changing a planting plan no longer requires Cancel.
+- Corrected the duplicate legacy iOS deployment-target entry in
+  `export_presets.cfg`; both entries now specify iOS 15.0, so the next fresh
+  Xcode export should not require manual project-file repair.
+- Preserved the family training targets of 50/46/42/38%, the reduced
+  helper-retention odds, and the revitalizer cost of three additional unfitted
+  Power Stones.
+- Updated the visual-precedence regression guard: Brighton's supplied
+  Spriggle and Frondle models now explicitly win, while the remaining family
+  procedural fallbacks stay protected where no supplied model replaces them.
 
 ### September 20 gameplay and interface polish
 
@@ -332,6 +359,19 @@ affect future training only; they do not reduce levels already earned.
   The cached regional map returned in about 14 ms after a roughly 1.4-second
   first build in the headless regression check.
 
+### September 23, 2026
+
+- **`0008aee` upstream — Add regional encounters and Quiblets, refine cooking
+  and expedition visuals**
+  Adopted Brighton's new creature models and moves, region-weighted encounter
+  pools, recipes, terrain and tree presentation, fainted collision behavior,
+  repaired Berry Grove track, and screen-edge berry indicators.
+- **Family-edition merge resolution — this merge commit**
+  Preserved the iPad controls and export settings, family training and
+  retention balance, and the three-extra-stone revitalizer cost. Reverted the
+  family spice overlays to Brighton's default symbols after the overlays proved
+  unreliable on iPad, and added removable garden seed/fertilizer slots.
+
 ## Upstream merge policy
 
 When Brighton pushes new work:
@@ -373,7 +413,34 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 20, 2026:
+Latest verified result on September 23, 2026:
+
+- Full smoke check: **passed**, 31 species loaded and five-member team intact
+- Cooking behavior and Brighton-default spice presentation:
+  **158 checks, 0 failures**
+- Garden placement, removal, growth, harvest, and in-memory persistence:
+  **passed**
+- Stone Workshop and three-extra-stone revitalizer cost:
+  **170 checks, 0 failures**
+- Training and family relationship targets: **77 checks, 0 failures**
+- Berry Grove track selection and screen-edge patch indicators: **passed**
+- New Lombat, Lombera, and Snobble model/move/typing checks: **passed**
+- Regional encounters, fainted collision, rolling hills, and tree fading:
+  **passed**
+- Visual precedence: **3 active family fallbacks and 5 supplied Brighton
+  models passed**
+- Navigation flows: **10 checks, 0 failures**
+- Touch scrolling: **20 checks, 0 failures**
+- Save isolation, manual move activation, and exhaustive stew selection:
+  **passed**
+
+The full real-time music-state test was not used as a release gate in this
+headless run: its pre-existing sub-second Base Camp fade assertions skipped
+frames under the slow test renderer. Berry Grove track selection is covered by
+a separate deterministic check; the complete music transitions remain on the
+physical-device play-test list.
+
+Earlier verified results retained for historical reference:
 
 - September 20 navigation flows: **10 checks, 0 failures**
 - September 20 cooking and spice display: **160 checks, 0 failures**
@@ -444,8 +511,8 @@ as a functional merge failure.
 
 ## Next planned release
 
-The next device build should include Brighton's upstream commit `148cac2` and
-the September 19 family-edition merge resolution. Before installing it, repeat
+The next device build should include Brighton's upstream commit `0008aee` and
+the September 23 family-edition merge resolution. Before installing it, repeat
 the physical iPad release checklist rather than reusing an older Godot export
 or Xcode snapshot.
 
