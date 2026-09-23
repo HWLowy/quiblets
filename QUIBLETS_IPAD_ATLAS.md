@@ -5,11 +5,11 @@ a new Codex task. It records who owns which repository, what the family branch
 preserves, the current release state, how upstream updates are reconciled, how
 the iPad build is produced, and how Haley prefers to work through changes.
 
-Snapshot date: **September 21, 2026**  
+Snapshot date: **September 23, 2026**
 Local branch: **`ipad-release`**  
-Local HEAD: **`a605ad7` — Restore Bright's spice symbols**  
-Latest reviewed Brighton commit: **`148cac2` — Add Quiblets and camp gardening,
-refine moves and equipment UI**
+Latest code merge: **`a606c65` — Merge Bright's regional encounter update**
+Latest reviewed Brighton commit: **`0008aee` — Add regional encounters and
+Quiblets, refine cooking and expedition visuals**
 
 ## 1. People, ownership, and intent
 
@@ -59,28 +59,33 @@ Do not make family changes directly on Brighton's `main`. Work on
 
 At this snapshot:
 
-- `upstream/main` is at `148cac2` and has already been merged.
-- `origin/ipad-release` is at `9b64ad8`.
-- Local `ipad-release` is at `a605ad7` and is **two commits ahead of GitHub**:
-  - `abe5bd0` — Polish expedition, cooking, and revitalizer flows
-  - `a605ad7` — Restore Bright's spice symbols
-- The two commits still need to be pushed to `origin/ipad-release`.
-- A fresh build from `a605ad7` was successfully installed and launched on
-  Gra Skanegas on September 20, 2026.
-- That installed build has not yet received Haley's final physical-iPad report
-  specifically confirming the restored simple spice symbols.
+- `upstream/main` is at `0008aee` and has been merged.
+- `origin/ipad-release` is at `1764fa8`; the three earlier family checkpoint
+  commits and the first atlas were pushed successfully.
+- The code integration at `a606c65` is two commits ahead of GitHub: Brighton's
+  `0008aee` commit plus the `a606c65` family merge resolution. This atlas-only
+  follow-up commit makes the working branch three commits ahead until it is
+  pushed.
+- The merge adopts Brighton's repaired Berry Grove loop and edge indicators,
+  restores every spice presentation surface to his default compact symbols,
+  and makes placed garden seed/fertilizer ingredients draggable out again.
+- The family training targets, reduced helper-retention odds, and three-extra-
+  stone revitalizer cost are preserved and verified.
+- `project.godot` has been restored to its required committed iPad settings and
+  is clean. Both iOS minimum-version entries now specify 15.0.
+- No physical iPad build has yet been exported from `a606c65`; the spice,
+  gardening, Berry Grove audio, and edge indicators still need device testing.
 
-There are unrelated working-tree items that were intentionally not included in
-the two commits:
+Seven untracked test `.uid` files remain. They are generated Godot metadata and
+were intentionally not swept into the merge commit:
 
-- `project.godot` is modified. Its current unstaged version removes
-  `window/stretch/aspect="keep"` and
-  `pointing/emulate_mouse_from_touch=true`. Those settings are required by the
-  iPad smoke test, so inspect this diff before doing anything else. Do not
-  casually stage it or let it enter a merge commit.
-- Six untracked `.uid` files exist for recent tests. Treat them as generated
-  Godot metadata until deliberately reviewed; do not sweep them into an
-  unrelated commit.
+- `tests/area_encounters.gd.uid`
+- `tests/navigation_flows.gd.uid`
+- `tests/power_stone_recycling.gd.uid`
+- `tests/recycler_visual.gd.uid`
+- `tests/stone_inventory_tabs.gd.uid`
+- `tests/stone_inventory_tabs_preview.gd.uid`
+- `tests/stone_recycler_preview.gd.uid`
 
 The first checks in a new task should therefore be:
 
@@ -133,9 +138,9 @@ notes contain the full historical detail.
 Bright's supplied models and portraits always take priority. The family branch
 keeps these only where Bright has not supplied a comparable replacement:
 
-- Plip and Swellit water-drop silhouette/portrait fallback.
-- Spriggle and Frondle leaf-stem crowns and smooth vine arms.
-- Bloomie flat Healing Bloom flower hat.
+- Swellit water-drop silhouette/portrait fallback; Plip uses Brighton's model.
+- Brighton's supplied Spriggle, Frondle, and Bloomie models take precedence.
+  The older procedural definitions remain dormant fallbacks only.
 - Sparko and Scorchit rounded, varied-height three-flame crowns.
 
 The hooks are deliberately isolated so an upstream model update can replace the
@@ -165,12 +170,16 @@ art without discarding the whole iPad branch.
   chooses a level.
 - Expedition reward taps cannot pass through into the next screen.
 - Tapping a newly arrived Quiblet opens that exact Quiblet for inspection.
-- Berry Groves use normal expedition music until the dedicated loop is repaired.
-- Berry Groves show a subtle arrow toward the nearest uncollected berry patch.
+- Berry Groves use Brighton's repaired dedicated loop.
+- Berry Groves use Brighton's screen-edge indicators for remaining patches;
+  the temporary family ground arrow has been removed.
 - Regular encounters follow a broader S-shaped route with a 22–32-unit walking
   budget, preserving exploration without the former long empty walks.
-- Bright's simple spice symbols are retained. Spice cards display name and
-  quality, and a spice placed in the pot keeps its symbol, color, and label.
+- Every spice surface uses Brighton's default compact symbol display. Names,
+  qualities, effects, tooltips, and inventory data remain available without the
+  family branch's larger custom overlays.
+- Placed garden seeds and fertilizer can be moved between slots or dragged away
+  to remove them without consuming inventory or cancelling the planting menu.
 
 ### Family balance
 
@@ -185,6 +194,10 @@ art without discarding the whole iPad branch.
 
 The latest merged upstream work includes Bright's:
 
+- four new imported creature models, regional encounter weighting, dual typing,
+  expanded recipes, rolling hills, foreground-tree fading, fainted collision,
+  and refined combat visuals;
+- repaired Berry Grove music and viewport-edge berry patch indicators;
 - camp gardening, new Quiblets, imported models, portraits, and ingredients;
 - expanded recipes, team presets, fitted-equipment display, and evolution pause;
 - regional map, discovery system, map cache, expedition and movement work;
@@ -350,11 +363,11 @@ Success criterion: Godot finishes the iOS export and the new folder contains
 `Quiblets.xcodeproj` and a freshly written `Quiblets.pck`.  
 What this achieves: Xcode receives the exact tested branch contents.
 
-### Step 3 — Handle the Xcode 27 deployment-target gotcha
+### Step 3 — Verify the corrected Xcode 27 deployment target
 
-`export_presets.cfg` currently contains two iOS minimum-version entries: an
-intended `15.0` value and a later legacy `14.0` value. The latest generated
-Xcode project therefore initially failed under Xcode 27 with:
+The previous `export_presets.cfg` contained an intended `15.0` entry and a
+later legacy `14.0` entry. The generated Xcode project therefore failed under
+Xcode 27 with:
 
 ```text
 The iOS deployment target is set to 14.0, but the supported range starts at 15.0.
@@ -364,9 +377,9 @@ For the successful `a605ad7` build, all generated
 `IPHONEOS_DEPLOYMENT_TARGET` values were changed from `14.0` to `15.0` in the
 fresh Xcode project's `project.pbxproj`, after which the build succeeded.
 
-Preferred future fix: remove or correct the duplicate legacy value in
-`export_presets.cfg`, export again, and verify the generated Xcode project says
-15.0 without manual editing.
+The legacy preset value was corrected to `15.0` in `a606c65`. On the next fresh
+export, verify the generated Xcode project says 15.0 everywhere without manual
+editing. Do not assume the fix is device-verified until that export succeeds.
 
 Success criterion: the fresh Xcode project uses iOS 15.0 everywhere.  
 What this achieves: Xcode 27 can compile the project while both family iPads
@@ -442,14 +455,15 @@ What this achieves: the build is ready for wider family testing.
 
 ## 11. Immediate continuation checklist
 
-1. Inspect the current dirty `project.godot` and generated `.uid` files.
-2. Push the two pending commits to `origin/ipad-release` when GitHub access is
-   available.
-3. Ask Haley whether the `a605ad7` iPad build displayed Bright's simple spice
-   symbols correctly in inventory and pot slots.
-4. Correct the duplicate iOS 14 minimum-version entry in `export_presets.cfg`
-   before the next export, then verify a clean Xcode 27 build without patching
-   the generated project.
+1. Push the `0008aee`/`a606c65` update and this atlas synchronization commit to
+   `origin/ipad-release`.
+2. Export a fresh Xcode project named for the new commit; do not reuse the
+   `a605ad7` project.
+3. Confirm the generated Xcode project uses iOS 15.0 everywhere and builds
+   without manually editing `project.pbxproj`.
+4. On the physical iPad, verify Brighton's spice symbols in the Workshop,
+   cooking inventory, and pot; drag a placed seed and fertilizer out of their
+   garden slots; and check Berry Grove music and screen-edge indicators.
 5. Before merging any newer Bright release, fetch `upstream`, report its commit
    range and overlaps, and obtain Haley's decision on genuine conflicts.
 6. Continue updating `IPAD_RELEASE_NOTES.md` for release history and this atlas
@@ -464,4 +478,3 @@ What this achieves: the build is ready for wider family testing.
 > overlaps. Prefer Brighton's newer work where it overlaps, preserve untouched
 > family iPad changes, protect the real player save, and guide me one step at a
 > time with a success criterion and purpose for each step.
-
