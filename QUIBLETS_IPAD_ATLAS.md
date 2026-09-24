@@ -60,12 +60,9 @@ Do not make family changes directly on Brighton's `main`. Work on
 At this snapshot:
 
 - `upstream/main` is at `0008aee` and has been merged.
-- `origin/ipad-release` is at `1764fa8`; the three earlier family checkpoint
-  commits and the first atlas were pushed successfully.
-- The code integration at `a606c65` is two commits ahead of GitHub: Brighton's
-  `0008aee` commit plus the `a606c65` family merge resolution. This atlas-only
-  follow-up commit makes the working branch three commits ahead until it is
-  pushed.
+- Local `ipad-release` and `origin/ipad-release` are synchronized. The published
+  history includes Brighton's `0008aee` commit, the `a606c65` family merge
+  resolution, and the updated release notes and atlas.
 - The merge adopts Brighton's repaired Berry Grove loop and edge indicators,
   restores every spice presentation surface to his default compact symbols,
   and makes placed garden seed/fertilizer ingredients draggable out again.
@@ -455,18 +452,16 @@ What this achieves: the build is ready for wider family testing.
 
 ## 11. Immediate continuation checklist
 
-1. Push the `0008aee`/`a606c65` update and this atlas synchronization commit to
-   `origin/ipad-release`.
-2. Export a fresh Xcode project named for the new commit; do not reuse the
+1. Export a fresh Xcode project named for the current commit; do not reuse the
    `a605ad7` project.
-3. Confirm the generated Xcode project uses iOS 15.0 everywhere and builds
+2. Confirm the generated Xcode project uses iOS 15.0 everywhere and builds
    without manually editing `project.pbxproj`.
-4. On the physical iPad, verify Brighton's spice symbols in the Workshop,
+3. On the physical iPad, verify Brighton's spice symbols in the Workshop,
    cooking inventory, and pot; drag a placed seed and fertilizer out of their
    garden slots; and check Berry Grove music and screen-edge indicators.
-5. Before merging any newer Bright release, fetch `upstream`, report its commit
+4. Before merging any newer Bright release, fetch `upstream`, report its commit
    range and overlaps, and obtain Haley's decision on genuine conflicts.
-6. Continue updating `IPAD_RELEASE_NOTES.md` for release history and this atlas
+5. Continue updating `IPAD_RELEASE_NOTES.md` for release history and this atlas
    for repository/process/handoff changes.
 
 ## 12. Suggested opening message for the next task
