@@ -5,7 +5,7 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 23, 2026**
+Last updated: **September 26, 2026**
 Latest integrated upstream commit: **`0008aee`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
@@ -52,6 +52,28 @@ Godot can temporarily change this setting after running an individual preview
 scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 
 ## Completed work
+
+### September 26 physical iPad release
+
+- Rechecked Brighton's live repository; `0008aee` remains his latest published
+  commit, so no additional upstream merge was required.
+- The final save-safe smoke check passed before export.
+- Exported a completely fresh Xcode project from published `ipad-release`
+  commit `158008f` to
+  `/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-158008f-xcode`.
+- Verified the generated Xcode project uses iOS 15.0 in every deployment-target
+  setting, ARM64, bundle identifier `com.hwl.quiblets.preview`, team
+  `J8L78ZF8PC`, and Apple Development signing. The former manual iOS 14.0 repair
+  is no longer necessary.
+- Xcode compiled the device build and selected the correct development identity
+  and provisioning profile. macOS's document-provider layer attached Finder
+  metadata to the generated app, so the final bundle was copied without
+  extended metadata to a temporary local directory, signed with Xcode's
+  generated entitlements, and passed strict signature verification.
+- Installed the signed update successfully on **Gra Skanegas** using the same
+  bundle identifier, preserving the existing app container. Automated launch
+  was deliberately not performed because opening the game would access the real
+  player save; Haley's manual launch and physical play test remain pending.
 
 ### September 23 upstream update and iPad corrections
 
@@ -509,12 +531,12 @@ as a functional merge failure.
    reports the displayed results correctly.  
    Achievement: the build is ready for broader friends-and-family testing.
 
-## Next planned release
+## Current device release
 
-The next device build should include Brighton's upstream commit `0008aee` and
-the September 23 family-edition merge resolution. Before installing it, repeat
-the physical iPad release checklist rather than reusing an older Godot export
-or Xcode snapshot.
+The September 26 device build includes Brighton's upstream commit `0008aee`
+and the September 23 family-edition merge resolution. It is installed on
+**Gra Skanegas**; manual launch and the short physical play test are the only
+remaining release checks.
 
 Future entries should record the date, commit, reason for the change, exact
 player-visible behavior, important values or decisions, tests performed, and

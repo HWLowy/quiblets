@@ -5,7 +5,7 @@ a new Codex task. It records who owns which repository, what the family branch
 preserves, the current release state, how upstream updates are reconciled, how
 the iPad build is produced, and how Haley prefers to work through changes.
 
-Snapshot date: **September 23, 2026**
+Snapshot date: **September 26, 2026**
 Local branch: **`ipad-release`**  
 Latest code merge: **`a606c65` — Merge Bright's regional encounter update**
 Latest reviewed Brighton commit: **`0008aee` — Add regional encounters and
@@ -70,8 +70,11 @@ At this snapshot:
   stone revitalizer cost are preserved and verified.
 - `project.godot` has been restored to its required committed iPad settings and
   is clean. Both iOS minimum-version entries now specify 15.0.
-- No physical iPad build has yet been exported from `a606c65`; the spice,
-  gardening, Berry Grove audio, and edge indicators still need device testing.
+- A fresh build from published branch commit `158008f` was exported, signed,
+  signature-verified, and installed successfully on **Gra Skanegas** on
+  September 26. It has not been launched automatically because doing so would
+  access the real player save. Manual launch plus the spice, gardening, Berry
+  Grove audio, and edge-indicator checks remain pending.
 
 Seven untracked test `.uid` files remain. They are generated Godot metadata and
 were intentionally not swept into the merge commit:
@@ -350,10 +353,10 @@ What this achieves: the exported package contains the real game.
 Always export to a new folder named for the current commit. Do not reuse an old
 Xcode snapshot because its `.pck` can contain an earlier game.
 
-The latest successful export was:
+The latest successful export is:
 
 ```text
-/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-a605ad7-xcode/Quiblets.xcodeproj
+/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-158008f-xcode/Quiblets.xcodeproj
 ```
 
 Success criterion: Godot finishes the iOS export and the new folder contains
@@ -374,9 +377,9 @@ For the successful `a605ad7` build, all generated
 `IPHONEOS_DEPLOYMENT_TARGET` values were changed from `14.0` to `15.0` in the
 fresh Xcode project's `project.pbxproj`, after which the build succeeded.
 
-The legacy preset value was corrected to `15.0` in `a606c65`. On the next fresh
-export, verify the generated Xcode project says 15.0 everywhere without manual
-editing. Do not assume the fix is device-verified until that export succeeds.
+The legacy preset value was corrected to `15.0` in `a606c65`. The September 26
+export confirmed that every generated deployment target is now 15.0 without
+manual editing.
 
 Success criterion: the fresh Xcode project uses iOS 15.0 everywhere.  
 What this achieves: Xcode 27 can compile the project while both family iPads
@@ -403,9 +406,12 @@ and it progresses beyond the Godot loading screen.
 What this achieves: the current branch is installed as a playable development
 build.
 
-The current Xcode warnings about empty camera, microphone, and photo-library
-usage descriptions and `#pragma once in main file` did not block the successful
-build. They should be cleaned up before a polished public release.
+On September 26, Xcode compiled and provisioned the app, but the document-
+provider-backed build path attached Finder metadata that blocked the final
+code-sign command. Copying the completed app with `ditto --norsrc --noextattr`
+to `/private/tmp`, then signing it with Xcode's generated entitlements, produced
+a strictly verified bundle. That bundle installed successfully on Gra Skanegas.
+This is a packaging-path workaround, not a game-code or provisioning change.
 
 ### Step 6 — Physical play test
 
@@ -452,16 +458,14 @@ What this achieves: the build is ready for wider family testing.
 
 ## 11. Immediate continuation checklist
 
-1. Export a fresh Xcode project named for the current commit; do not reuse the
-   `a605ad7` project.
-2. Confirm the generated Xcode project uses iOS 15.0 everywhere and builds
-   without manually editing `project.pbxproj`.
-3. On the physical iPad, verify Brighton's spice symbols in the Workshop,
+1. Manually launch Quiblets on Gra Skanegas and confirm it reaches Base Camp
+   with the existing player progress intact.
+2. On the physical iPad, verify Brighton's spice symbols in the Workshop,
    cooking inventory, and pot; drag a placed seed and fertilizer out of their
    garden slots; and check Berry Grove music and screen-edge indicators.
-4. Before merging any newer Bright release, fetch `upstream`, report its commit
+3. Before merging any newer Bright release, fetch `upstream`, report its commit
    range and overlaps, and obtain Haley's decision on genuine conflicts.
-5. Continue updating `IPAD_RELEASE_NOTES.md` for release history and this atlas
+4. Continue updating `IPAD_RELEASE_NOTES.md` for release history and this atlas
    for repository/process/handoff changes.
 
 ## 12. Suggested opening message for the next task
