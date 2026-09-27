@@ -6,7 +6,7 @@ branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
 Last updated: **September 26, 2026**
-Latest integrated upstream commit: **`0008aee`**
+Latest integrated upstream commit: **`c6d2d4c`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
 ## Purpose of this branch
@@ -18,7 +18,7 @@ small set of family-edition changes:
 - iOS export and signing configuration
 - the approved home-screen icon
 - maintained Quiblet model and portrait refinements
-- family play-test balance adjustments
+- family-tested controls, navigation, and management improvements
 - focused regression checks and interactive Godot preview scenes
 
 This branch is intended to remain mergeable with Brighton's work. Features
@@ -52,6 +52,46 @@ Godot can temporarily change this setting after running an individual preview
 scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 
 ## Completed work
+
+### September 26 Brighton campaign update and iPad release
+
+- Integrated Brighton's `c6d2d4c` campaign update in merge commit `2b8269a`:
+  rebalanced campaign combat and rewards, fresh expedition layouts on replay,
+  enemy pressure and retreat behavior, independent charm drops, move-slot
+  management, new Psychic mechanics, and the Dartle, Dartlet, and Dromble
+  models with new move artwork.
+- Adopted Brighton's exact Base Camp music continuity implementation. The Base
+  Camp loop now continues without restarting through Resources, Stone and Spice
+  Workshops, Cooking, Recipes, All Quiblets, Quiblet inspection, Edit Team,
+  Training, item-use screens, and crystallization. Direct entry restores the
+  music if it was silent and crossfades cleanly from expedition music; the
+  cooking cue still takes temporary precedence and returns to Base Camp music.
+- Because Brighton changed training progression and the Revitalizer in this
+  update, his new versions supersede the prior family balance overrides.
+  EXP Training now uses 92/89/85/80% relationship factors with his current
+  gap-based/cubic formula; helper preservation uses his full original odds.
+  Revitalizing now raises a stone to the current stage-drop average and consumes
+  selected sacrificial stones worth twice the power gap instead of a flat three
+  additional stones.
+- Retained untouched iPad/family adaptations: touch input and scrolling,
+  explicit level selection after an island tap, the integrated fifth Recycler
+  tab, default Brighton spice presentation, and draggable removal/replacement
+  of placed garden seeds and fertilizer.
+- Corrected two stale incoming regression assumptions without changing
+  Brighton's game data: ingredient compatibility follows the current multi-tag
+  data with poor tags checked before good tags, and the first route's rounded
+  combat target may tie rather than strictly rise.
+- Verified the Base Camp menu music test, real-audio expedition loop/crossfade,
+  smoke and save isolation, training, workshop and revitalizer, gardening,
+  item navigation, iPad touch behavior, combat pressure, rewards, replay
+  layouts, Psychic species, and all 160 campaign nodes.
+- Exported a fresh iOS project from `2b8269a` to
+  `/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-2b8269a-xcode`.
+  Xcode compiled it for iOS 15 and the connected physical iPad. The known
+  document-provider metadata issue was handled with the established clean-copy
+  signing workflow; the resulting app passed strict signature verification and
+  installed successfully on **Gra Skanegas** under the existing bundle ID.
+  It was not launched automatically, protecting the real player save.
 
 ### September 26 physical iPad release
 
@@ -435,7 +475,7 @@ Interactive Godot previews:
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
 
-Latest verified result on September 23, 2026:
+Previous verified result for the September 23 update:
 
 - Full smoke check: **passed**, 31 species loaded and five-member team intact
 - Cooking behavior and Brighton-default spice presentation:
@@ -533,10 +573,13 @@ as a functional merge failure.
 
 ## Current device release
 
-The September 26 device build includes Brighton's upstream commit `0008aee`
-and the September 23 family-edition merge resolution. It is installed on
-**Gra Skanegas**; manual launch and the short physical play test are the only
-remaining release checks.
+The current September 26 device build is merge commit `2b8269a`, including
+Brighton's upstream `c6d2d4c` campaign update and Base Camp menu-music fix. It
+is installed on **Gra Skanegas** under the existing bundle identifier. Automated
+checks passed for Base Camp continuity, real-audio loops and crossfades, smoke
+and save isolation, training, Stone Workshop, gardening, item navigation, iPad
+touch behavior, combat and rewards, replay layouts, and all 160 campaign nodes.
+Manual launch and the short physical play test are the only remaining checks.
 
 Future entries should record the date, commit, reason for the change, exact
 player-visible behavior, important values or decisions, tests performed, and

@@ -7,9 +7,10 @@ the iPad build is produced, and how Haley prefers to work through changes.
 
 Snapshot date: **September 26, 2026**
 Local branch: **`ipad-release`**  
-Latest code merge: **`a606c65` — Merge Bright's regional encounter update**
-Latest reviewed Brighton commit: **`0008aee` — Add regional encounters and
-Quiblets, refine cooking and expedition visuals**
+Latest code merge: **`2b8269a` — Merge Brighton campaign rebalance and base
+camp music**
+Latest reviewed Brighton commit: **`c6d2d4c` — Rebalance campaign combat and
+rewards, refresh expedition layouts**
 
 ## 1. People, ownership, and intent
 
@@ -59,27 +60,28 @@ Do not make family changes directly on Brighton's `main`. Work on
 
 At this snapshot:
 
-- `upstream/main` is at `0008aee` and has been merged.
-- Local `ipad-release` and `origin/ipad-release` are synchronized. The published
-  history includes Brighton's `0008aee` commit, the `a606c65` family merge
-  resolution, and the updated release notes and atlas.
-- The merge adopts Brighton's repaired Berry Grove loop and edge indicators,
-  restores every spice presentation surface to his default compact symbols,
-  and makes placed garden seed/fertilizer ingredients draggable out again.
-- The family training targets, reduced helper-retention odds, and three-extra-
-  stone revitalizer cost are preserved and verified.
+- `upstream/main` is at `c6d2d4c` and has been merged in `2b8269a`.
+- The merge adopts Brighton's campaign combat/reward rebalance, replay layout
+  refresh, move-slot and Psychic systems, new models, and his Base Camp menu
+  music continuity fix.
+- Because Brighton changed training and revitalization in this update, his
+  current systems now win: 92/89/85/80% EXP relationship factors, full helper-
+  preservation odds, and a Revitalizer cost equal to twice the power gap paid
+  with selected sacrificial stones.
+- Untouched family adaptations remain: iPad input/scrolling and navigation,
+  the integrated Recycler, default Brighton spice presentation, and draggable
+  removal/replacement of placed garden seeds and fertilizer.
 - `project.godot` has been restored to its required committed iPad settings and
   is clean. Both iOS minimum-version entries now specify 15.0.
-- A fresh build from published branch commit `158008f` was exported, signed,
+- A fresh build from merge commit `2b8269a` was exported, signed,
   signature-verified, and installed successfully on **Gra Skanegas** on
   September 26. It has not been launched automatically because doing so would
-  access the real player save. Manual launch plus the spice, gardening, Berry
-  Grove audio, and edge-indicator checks remain pending.
+  access the real player save. Manual launch plus a short Base Camp music,
+  workshop, gardening, expedition, and combat play test remain pending.
 
-Seven untracked test `.uid` files remain. They are generated Godot metadata and
+Six untracked test `.uid` files remain. They are generated Godot metadata and
 were intentionally not swept into the merge commit:
 
-- `tests/area_encounters.gd.uid`
 - `tests/navigation_flows.gd.uid`
 - `tests/power_stone_recycling.gd.uid`
 - `tests/recycler_visual.gd.uid`
@@ -159,7 +161,8 @@ art without discarding the whole iPad branch.
 - Recycler spice odds by tier: 1%, 2%, 3%, 4%, 5%.
 - Each Workshop mode preserves its own inventory scroll position when a stone
   is selected, removed, or processed.
-- Revitalizing one target stone consumes three additional unfitted stones.
+- Revitalizing one target stone consumes selected unfitted stones whose combined
+  Power covers twice the difference to Brighton's current stage-drop baseline.
 
 ### Navigation and presentation
 
@@ -181,18 +184,22 @@ art without discarding the whole iPad branch.
 - Placed garden seeds and fertilizer can be moved between slots or dragged away
   to remove them without consuming inventory or cancelling the planting menu.
 
-### Family balance
+### Current balance ownership
 
-- Bright's current fruit-bearing scenery mechanism is used, with the exact
-  probabilities and quality behavior documented in `IPAD_RELEASE_NOTES.md`.
-- Bright's catch-up training mechanism is used with lower family targets:
-  50% same species, 46% same evolution family, 42% same type, 38% unrelated.
-- Ingredient-based helper-retention chances remain half of Bright's original
-  values. Move Training success rates were not changed.
+- Brighton's current fruit-bearing scenery, campaign progression, combat,
+  rewards, EXP Training, helper preservation, and Revitalizer costs are used.
+- The older family training factors and flat three-extra-stone Revitalizer cost
+  were retired when Brighton updated those same systems in `c6d2d4c`.
 
 ## 6. What came from Bright and should normally win
 
 The latest merged upstream work includes Bright's:
+
+- Base Camp music continuity across every camp-type menu, including workshops,
+  team editing, Quiblet inspection, training, item use, and crystallization;
+- campaign-wide combat, reward, drop, retreat, and progression rebalancing;
+- fresh expedition layouts on replay, move-slot management, Psychic decoys and
+  effects, new move artwork, and Dartle, Dartlet, and Dromble models;
 
 - four new imported creature models, regional encounter weighting, dual typing,
   expanded recipes, rolling hills, foreground-tree fading, fainted collision,
@@ -356,7 +363,7 @@ Xcode snapshot because its `.pck` can contain an earlier game.
 The latest successful export is:
 
 ```text
-/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-158008f-xcode/Quiblets.xcodeproj
+/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-2b8269a-xcode/Quiblets.xcodeproj
 ```
 
 Success criterion: Godot finishes the iOS export and the new folder contains
