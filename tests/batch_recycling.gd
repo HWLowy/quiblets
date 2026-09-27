@@ -33,7 +33,13 @@ func run():
 	assert(game.content.find_children("RecycleRewardFlash*","",true,false).size()==game.last_recycle_rewards.size())
 	var recipe:Dictionary=GameData.RECIPES[0]
 	game.leftovers[recipe.name]=1
+	var jars_before:int=game.special_items["Empty Leftover Jar"]
 	game.recycle_leftover(recipe);await process_frame
 	assert(game.content.find_child("RecyclingResults",true,false)!=null and game.leftovers[recipe.name]==0)
+	assert(game.special_items["Empty Leftover Jar"]==jars_before+1)
+	assert(game.content.find_child("ReturnedLeftoverJar",true,false)!=null)
+	assert(game.content.find_child("RecyclingResults",true,false).get_meta("returned_jars")==1)
+	game.recycle_leftover(recipe)
+	assert(game.special_items["Empty Leftover Jar"]==jars_before+1,"An empty leftover stack cannot refund another jar")
 	print("Batch selection limit, snapshot validation, cancellation, confirmation and rewards passed")
 	game.queue_free();await process_frame;quit()

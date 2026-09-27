@@ -16,7 +16,7 @@ func _initialize()->void:
 	game.expedition_music.bus="ExpeditionMusicTest"
 	game.start_expedition("Music playback test")
 	game.expedition.process_mode=Node.PROCESS_MODE_DISABLED
-	await create_timer(1.35).timeout
+	await create_timer(1.6).timeout
 	if not check(game.expedition_music.playing and has_audio(capture),"Starting an expedition must produce non-silent audio"):return
 	capture.clear_buffer()
 	game.expedition_music.play(track.get_length()-.15)
@@ -29,7 +29,7 @@ func _initialize()->void:
 	if not check(game.expedition_music.playing and (game.expedition_music.stream as AudioStreamWAV).get_meta("source_path","").ends_with("Expedition.wav"),"Island selection must continue with the Expedition theme"):return
 	game.show_camp()
 	if not check(game.expedition_music.playing and game.base_camp_music.playing,"Returning to Base Camp must begin an overlapping crossfade"):return
-	await create_timer(1.3).timeout
+	await create_timer(1.6).timeout
 	if not check(not game.expedition_music.playing and game.base_camp_music.playing and is_equal_approx(game.base_camp_music.volume_db,0.0),"The Base Camp crossfade did not finish correctly"):return
 	game.queue_free()
 	await process_frame

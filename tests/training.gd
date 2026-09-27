@@ -51,18 +51,18 @@ func quiblet(roster_index:int)->Dictionary:
 
 func run()->void:
 	# Data rules.
-	var plip:=GameData.make_quiblet(0,8);var swellit:=GameData.make_quiblet(1,12);var spriggle:=GameData.make_quiblet(2,8);var sparko:=GameData.make_quiblet(6,20)
-	check(GameData.quiblet_relationship(plip,GameData.make_quiblet(0,3))=="species" and GameData.quiblet_relationship(plip,swellit)=="family" and GameData.quiblet_relationship(spriggle,GameData.make_quiblet(4,5))=="type" and GameData.quiblet_relationship(plip,sparko)=="none","Relationships should rank species, evolution family, type, then none")
-	check(GameData.ingredient_compatibility(0,"Dewmelon")=="excellent" and GameData.ingredient_compatibility(0,"Sparkfruit")=="poor" and GameData.ingredient_compatibility(0,"Knobroot")=="neutral" and GameData.ingredient_compatibility(0,"Crystalcorn")=="poor" and GameData.ingredient_compatibility(0,"Emberpepper")=="opposing","Water ingredient compatibility follows Bright's revised multi-tag ingredients, checking poor tags before good tags")
+	var plip:=GameData.make_quiblet(0,8);var swellit:=GameData.make_quiblet(1,12);var spriggle:=GameData.make_quiblet(2,8);var flaret:=GameData.make_quiblet(6,20)
+	check(GameData.quiblet_relationship(plip,GameData.make_quiblet(0,3))=="species" and GameData.quiblet_relationship(plip,swellit)=="family" and GameData.quiblet_relationship(spriggle,GameData.make_quiblet(4,5))=="type" and GameData.quiblet_relationship(plip,flaret)=="none","Relationships should rank species, evolution family, type, then none")
+	check(GameData.ingredient_compatibility(0,"Dewmelon")=="excellent" and GameData.ingredient_compatibility(0,"Sparkfruit")=="poor" and GameData.ingredient_compatibility(0,"Knobroot")=="neutral" and GameData.ingredient_compatibility(0,"Crystalcorn")=="poor" and GameData.ingredient_compatibility(0,"Emberpepper")=="opposing","Water ingredient compatibility follows the current ingredient tags, checking poor tags before good tags")
 	check(GameData.ingredient_compatibility(6,"Emberpepper")=="excellent" and GameData.ingredient_compatibility(6,"Frostberry")=="opposing" and GameData.ingredient_compatibility(2,"Bitterleaf")=="excellent" and GameData.ingredient_compatibility(2,"Brinepod")=="poor","Fire and Green ingredient compatibility")
 	var spriggle_twin:=GameData.make_quiblet(2,8);var frondle:=GameData.make_quiblet(3,12);var vinee:=GameData.make_quiblet(4,4)
-	var helpers:Array=[spriggle_twin,frondle,vinee,sparko]
+	var helpers:Array=[spriggle_twin,frondle,vinee,flaret]
 	check(is_equal_approx(GameData.move_training_chance(spriggle,helpers),67.0),"Move chance: 5 base + 25 species + 20 family + 12 type + 5 unrelated")
 	check(is_equal_approx(GameData.move_training_chance(spriggle,[]),5.0) and is_equal_approx(GameData.move_training_chance(spriggle,[spriggle_twin,spriggle_twin,spriggle_twin,spriggle_twin]),95.0),"Move chance starts at 5% and caps at 95%")
 	var expected_exp:=0
 	for helper in helpers:expected_exp+=GameData.exp_training_helper_reward(spriggle,helper)
 	check(GameData.exp_training_reward(spriggle,helpers)==expected_exp and expected_exp>0,"EXP reward sums helpers using the unchanged starting trainee")
-	check(is_equal_approx(GameData.helper_preservation_chance(spriggle,["Bitterleaf","Bumbleberry"]),5.0+2.5) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Sunplum","Sunplum"]),5.0+5.0) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Emberpepper"]),1.25) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["","Brinepod"]),3.75),"Preservation chance sums the reduced rarity × compatibility odds per added food")
+	check(is_equal_approx(GameData.helper_preservation_chance(spriggle,["Bitterleaf","Bumbleberry"]),10.0+5.0) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Sunplum","Sunplum"]),10.0+10.0) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["Emberpepper"]),2.5) and is_equal_approx(GameData.helper_preservation_chance(spriggle,["","Brinepod"]),7.5),"Preservation chance sums rarity × compatibility per added food (T1 match 10, T1 neutral 5, T4 poor 10 ×2, T1 poor 2.5, T3 poor 7.5)")
 	var pool:=GameData.retrain_pool(spriggle)
 	check(pool.size()==GameData.learnset(2).size()-spriggle.moves.size() and pool.all(func(name):return not spriggle.moves.any(func(move):return move.name==name)),"The retrain pool excludes every move currently in a slot")
 	var picks:={}
@@ -77,7 +77,7 @@ func run()->void:
 	check(int(evo.level)>=18 and int(evo.species)==1 and str(evo.nickname)=="Bubbles" and evo.moves==evo_stones,"Leveling a Plip to 18 turns it into Swellit, keeping its nickname and moves")
 	var late:Dictionary=GameData.make_quiblet(6,10)
 	game.grant_training_exp(late,GameData.total_exp(GameData.make_quiblet(6,17))-GameData.total_exp(late))
-	check(int(late.species)==6,"A Sparko below Lv. 18 stays a Sparko")
+	check(int(late.species)==6,"A Flaret below Lv. 18 stays a Flaret")
 	# Pausing evolution keeps a Quiblet in its current form even past the evolve level.
 	check(GameData.can_evolve(0) and not GameData.can_evolve(1),"A base species can evolve; its evolved form cannot")
 	var held:Dictionary=GameData.make_quiblet(0,17);held.evolution_paused=true
@@ -129,7 +129,7 @@ func run()->void:
 	check(game.screen=="training","Clicking an ingredient in the training grid must stay on the training screen")
 	var mode_buttons:Array=[game.content.find_child("TrainingModeMove",true,false),game.content.find_child("TrainingModeExp",true,false)]
 	check(mode_buttons.all(func(button):return button.position.y<game.content.find_child("TraineeSlot",true,false).position.y),"Mode buttons sit at the top of the training section")
-	# Fixture: Spriggle trainee with a twin, a Frondle, a Vinee, and a Sparko as helpers.
+	# Fixture: Spriggle trainee with a twin, a Frondle, a Vinee, and a Flaret as helpers.
 	game.roster.append(GameData.make_quiblet(2,10));var trainee_index:int=game.roster.size()-1
 	game.roster.append(GameData.make_quiblet(2,8));game.roster.append(GameData.make_quiblet(3,12));game.roster.append(GameData.make_quiblet(4,4));game.roster.append(GameData.make_quiblet(6,20))
 	check(int(game.roster[trainee_index].species)==2,"Fixture Spriggle trainee")
@@ -162,7 +162,7 @@ func run()->void:
 	check(game.training_helpers[0]==twin and not helper_slot.suppress_next_release,"The release at the end of a drag does not also clear its training slot")
 	var trainee:Dictionary=game.roster[trainee_index];var moves_before:int=trainee.moves.size()
 	# Move training shows the trainee's moves with their stone slots and needs one picked.
-	trainee.moves[0].slots=2;trainee.moves[0].stones=["echo"];game.show_training();await process_frame
+	trainee.moves[0].slots=2;trainee.moves[0].erase("slot_data");trainee.moves[0].stones=["echo"];game.show_training();await process_frame
 	var moves_panel:Control=game.content.find_child("TrainingMoves",true,false)
 	check(moves_panel!=null and moves_panel.find_children("RetrainMove*","Button",true,false).size()==moves_before,"Move training lists every move of the trainee as a clickable row")
 	check(moves_panel.find_children("TrainingMoveIcon*","",true,false).size()==moves_before and moves_panel.find_children("TrainingStoneSlot0_*","",true,false).size()==2 and moves_panel.find_child("TrainingStoneSlot0_0",true,false).get_child_count()==1 and moves_panel.find_child("TrainingStoneSlot1_0",true,false).get_child_count()==0,"Each row shows the move icon, its Move Stone slots, and fitted stones")

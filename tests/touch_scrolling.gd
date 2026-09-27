@@ -117,22 +117,22 @@ func run() -> void:
 	game.item_use.roster_index = 0
 	game.show_item_use("Move Crystal")
 	await process_frame
-	for name in ["ItemTargetScroll", "ItemChoiceScroll"]:
-		check(game.content.find_child(name, true, false) is TouchScrollContainer, "%s should use vertical touch scrolling" % name)
+	check(game.content.find_child("ItemChoiceScroll", true, false) is TouchScrollContainer, "Item choices should use vertical touch scrolling")
+	game.special_items["Echo Crystal"] = 1
+	game.move_stone_inventory["blast"] = 1
+	game.begin_item_use("Echo Crystal")
+	game.show_item_use("Echo Crystal")
+	await process_frame
+	check(game.content.find_child("ItemTargetScroll", true, false) is TouchScrollContainer, "The Echo Crystal stone list should use vertical touch scrolling")
 	game.power_stone_inventory.clear()
 	for stone_index in 60:
 		game.power_stone_inventory.append(GameData.make_power_stone("Health" if stone_index % 2 == 0 else "Attack", 1 + stone_index % 5, []))
 	game.begin_stone_workshop("revitalize")
 	game.show_stone_workshop()
 	await process_frame
-	var workshop: TouchScrollContainer = game.content.find_child("WorkshopStoneScroll", true, false)
-	check(workshop != null and workshop.has_scroll_range() and not workshop.get_v_scroll_bar().visible, "The long Power Stone grid should swipe vertically with no visible scrollbar")
+	check(game.content.find_child("WorkshopStoneScroll", true, false)==null and game.content.find_child("PageNavigation",true,false)!=null, "Bright's paged Power Stone grid should fit without a vertical scrollbar")
+	check(game.content.find_children("WorkshopStone*","",true,false).size()<=30, "A workshop page should show no more than thirty stones")
 	check(game.content.find_child("WorkshopDetailScroll", true, false) is TouchScrollContainer, "Stone Workshop details should use vertical touch scrolling")
-	var workshop_start := workshop.get_global_rect().get_center()
-	workshop._input(touch(workshop_start, true))
-	workshop._input(drag(workshop_start - Vector2(0, 100), Vector2(0, -100), Vector2(0, -800)))
-	check(workshop.scroll_vertical > 0, "The actual Revitalize stone grid should move when its cards are swiped")
-	workshop._input(touch(workshop_start - Vector2(0, 100), false))
 	game.begin_stone_recycler()
 	await process_frame
 	var recycler: TouchScrollContainer = game.content.find_child("RecyclerStoneScroll", true, false)
