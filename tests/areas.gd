@@ -40,6 +40,7 @@ func run()->void:
 		for node in 8:
 			var data:Dictionary=game.area_level_data(area,node);var card:Control=game.content.find_child("LevelNode%d"%node,true,false);var play:Button=card.get_node("PlayLevel%d"%node)
 			check(data.type==TYPES[node] and card!=null,"Incorrect route node sequence")
+			check(not str(data.story).is_empty() and str(data.story).ends_with("."),"Every route node needs its journal sentence")
 			check(play.disabled==(node>0),"Only the first level should begin unlocked")
 			check(card.find_children("*","Label",true,false).any(func(item):return str(item.text).contains("♥") and str(item.text).contains("⚔") and str(item.text).contains("◎")),"Level lacks difficulty details")
 	game.area_progress.fill(0)
@@ -47,6 +48,7 @@ func run()->void:
 	for node in 8:
 		game.start_area_level(0,node);await process_frame
 		check(game.screen=="expedition" and game.expedition.stage_node_index==node and game.expedition.stage_kind==TYPES[node],"Unlocked node launched wrong level")
+		check(game.content.find_child("ExpeditionStory",true,false)!=null,"The expedition did not show its journal sentence")
 		check(not str(game.expedition.obstacles).is_empty(),"Level map was not built")
 		if node==0:
 			var first:Expedition3D=game.expedition

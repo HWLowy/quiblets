@@ -6,11 +6,15 @@ extends RefCounted
 # less likely to disturb an approved silhouette.
 
 static func build_custom_body(model, species: Dictionary) -> bool:
-	if str(species.get("family", "")) != "plip":
-		return false
-	water_drop_body(model, model.body_material)
-	mark(model, "plip_water_drop_body")
-	return true
+	if str(species.get("family", "")) == "plip":
+		water_drop_body(model, model.body_material)
+		mark(model, "plip_water_drop_body")
+		return true
+	if str(species.get("name", "")) == "Zippet":
+		zippet_spark_body(model, model.body_material)
+		mark(model, "zippet_spark_body")
+		return true
+	return false
 
 static func apply_species_features(model, species: Dictionary) -> bool:
 	var species_name := str(species.get("name", ""))
@@ -31,13 +35,17 @@ static func apply_species_features(model, species: Dictionary) -> bool:
 			flower_hat(model)
 			mark(model, "bloomie_healing_bloom_hat")
 			return true
-		"Sparko":
+		"Flaret", "Sparko":
 			flame_peaks(model, 0.95)
 			mark(model, "sparko_flame_crown")
 			return false # Keep its original tail too.
 		"Scorchit":
 			flame_peaks(model, 1.18)
 			mark(model, "scorchit_flame_crown")
+			return true
+		"Zippet":
+			zippet_charge_mark(model)
+			mark(model, "zippet_charge_mark")
 			return true
 	return false
 
@@ -65,6 +73,53 @@ static func water_drop_body(model, mat: Material) -> void:
 	var surface := revolved_surface(profile, 16, 0.86)
 	var part: MeshInstance3D = model.mesh_part(surface, Vector3.ZERO, mat)
 	part.name = "VisualOverrideWaterDropBody"
+
+static func zippet_spark_body(model, mat: Material) -> void:
+	# Zippet's moves are almost all quick darts, dashes and static bursts. A
+	# gently zig-zagging centreline turns the standard round body into a small
+	# living spark without changing its familiar face, feet or toy proportions.
+	var profile := [
+		{"center": Vector3(0.00, 0.05, 0.02), "radius": 0.08},
+		{"center": Vector3(0.00, 0.20, 0.02), "radius": 0.30},
+		{"center": Vector3(0.00, 0.48, 0.03), "radius": 0.55},
+		{"center": Vector3(0.00, 0.79, 0.00), "radius": 0.64},
+		{"center": Vector3(0.00, 1.05, -0.04), "radius": 0.49},
+		{"center": Vector3(0.10, 1.27, -0.12), "radius": 0.28},
+		{"center": Vector3(-0.05, 1.42, -0.20), "radius": 0.16},
+		{"center": Vector3(0.12, 1.58, -0.29), "radius": 0.01},
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_smooth_group(0)
+	var radial_segments := 16
+	for ring_index in profile.size() - 1:
+		var lower: Dictionary = profile[ring_index]
+		var upper: Dictionary = profile[ring_index + 1]
+		for segment in radial_segments:
+			var angle_a := TAU * float(segment) / float(radial_segments)
+			var angle_b := TAU * float(segment + 1) / float(radial_segments)
+			var lower_a: Vector3 = lower.center + Vector3(cos(angle_a) * lower.radius, 0.0, sin(angle_a) * lower.radius * 0.86)
+			var upper_a: Vector3 = upper.center + Vector3(cos(angle_a) * upper.radius, 0.0, sin(angle_a) * upper.radius * 0.86)
+			var upper_b: Vector3 = upper.center + Vector3(cos(angle_b) * upper.radius, 0.0, sin(angle_b) * upper.radius * 0.86)
+			var lower_b: Vector3 = lower.center + Vector3(cos(angle_b) * lower.radius, 0.0, sin(angle_b) * lower.radius * 0.86)
+			for vertex in [lower_a, upper_b, upper_a, lower_a, lower_b, upper_b]:
+				surface.add_vertex(vertex)
+	surface.generate_normals()
+	var part: MeshInstance3D = model.mesh_part(surface.commit(), Vector3.ZERO, mat)
+	part.name = "VisualOverrideZippetSparkBody"
+
+static func zippet_charge_mark(model) -> void:
+	# A tiny three-stroke bolt on the forehead distinguishes the spark silhouette
+	# from the water drop and flame family at the small scale used in combat.
+	var charge_mat:StandardMaterial3D=model.material(Color("#fff4a8"),.7)
+	var strokes:Array[Dictionary]=[
+		{"position":Vector3(-.04,1.19,.34),"rotation":.48},
+		{"position":Vector3(.035,1.10,.40),"rotation":-.50},
+		{"position":Vector3(-.025,1.02,.44),"rotation":.42},
+	]
+	for index in strokes.size():
+		var stroke:MeshInstance3D=model.box(strokes[index].position,Vector3(.06,.17,.045),charge_mat,Vector3(0,0,strokes[index].rotation))
+		stroke.name="VisualOverrideZippetCharge%d"%index
 
 static func flower_hat(model) -> void:
 	# The Healing Bloom's six pink petals and yellow center, laid flat like a hat.

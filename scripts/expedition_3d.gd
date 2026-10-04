@@ -66,6 +66,8 @@ const TAUNT_RANGE:=14.0
 const MAX_DECOR:=40
 var zones:Array[Dictionary]=[]
 var route_points:Array[Vector2]=[]
+var encounter_route_points:Array[Vector2]=[]
+var route_orientation:=0.0
 var corridor_widths:Array[float]=[]
 var walkable:Dictionary={}
 var arena_rect:=Rect2(-12,-6,24,12)
@@ -88,11 +90,13 @@ func zone_count()->int:
 
 const BOSS_ARENAS:=3
 const SCATTER_GROUPS:={"level":Vector2i(4,6),"boss":Vector2i(7,9)}
-# Enemies notice the team before it reaches the formation center. Reserve
-# that approach distance so the actual quiet walk lasts about 6–7 seconds.
-const SET_MIN_TEAM_DISTANCE:=22.0
-const SET_TARGET_WALK_DISTANCE:=27.0
-const SET_MAX_WALK_DISTANCE:=32.0
+# Enemies notice the team before it reaches the formation center. These
+# medium-length steps leave roughly 8–10 quiet seconds to explore between
+# fights without returning to the very long hikes of the original big maps.
+const SET_MIN_TEAM_DISTANCE:=26.0
+const SET_TARGET_WALK_DISTANCE:=32.0
+const SET_MAX_WALK_DISTANCE:=38.0
+const MIN_ROUTE_ADVANCE:=10.0
 const ENCOUNTER_REUSE_RADIUS:=11.0
 var encounter_style:="clearing"
 const SCATTER_ALERT_RADIUS:=3.2
@@ -101,6 +105,7 @@ var map_seed:int=0
 var generated_map_seed:int=0
 var terrain_wave_offset:=Vector2.ZERO
 var spawn_points:Array[Vector2]=[]
+var spawn_route_progresses:Array[float]=[]
 var used_spawn_points:Array[int]=[]
 const BOSS_INTRO_PAN_SECONDS:=4.5
 # A new set holds the camera only until its last enemy has landed, plus a short linger.
@@ -190,7 +195,7 @@ func build_level()->void:
 	rng.seed=generated_map_seed
 	terrain_wave_offset=Vector2(rng.randf_range(-500,500),rng.randf_range(-500,500))
 	biome=GameData.expedition_biome(stage_area_index)
-	fade_weights.clear();waterfall_cells.clear();waterfalls.clear();waterfall_bubbles.clear();spanned_cells.clear();bridge_arches.clear();river_crossings.clear();obstacles.clear();berry_nodes.clear();zones.clear();route_points.clear();corridor_widths.clear();walkable.clear();rivers.clear();bridges.clear();wall_tiers.clear();props.clear();prop_cells.clear();decor_count=0;cliff_tiers={1:0,2:0,3:0};cache_node=null
+	fade_weights.clear();waterfall_cells.clear();waterfalls.clear();waterfall_bubbles.clear();spanned_cells.clear();bridge_arches.clear();river_crossings.clear();obstacles.clear();berry_nodes.clear();zones.clear();route_points.clear();encounter_route_points.clear();corridor_widths.clear();walkable.clear();rivers.clear();bridges.clear();wall_tiers.clear();props.clear();prop_cells.clear();decor_count=0;cliff_tiers={1:0,2:0,3:0};cache_node=null
 	if is_instance_valid(decor_root):decor_root.free()
 	if is_instance_valid(props_root):props_root.free()
 	decor_root=Node3D.new();decor_root.name="Decor";add_child(decor_root)
@@ -288,7 +293,7 @@ func layout_zones(rng:RandomNumberGenerator)->void:
 	field_rect=Rect2i(-size.x/2,-size.y/2,size.x,size.y)
 	# Rotate the route in normalized map space, so starts can be on any edge
 	# without pushing clearings outside a rectangular field.
-	var orientation:=rng.randi_range(0,3)*PI*.5
+	var orientation:=rng.randi_range(0,3)*PI*.5;route_orientation=orientation
 	var side:=1.0 if rng.randf()<.5 else -1.0
 	var half_extent:=Vector2(size)*.5-Vector2(8,8)
 	for i in count:
@@ -311,6 +316,24 @@ func layout_zones(rng:RandomNumberGenerator)->void:
 		var a:Vector2=zones[i-1].center;var b:Vector2=zones[i].center
 		corridor_widths.append(2.0)
 		for step in ROUTE_SAMPLES:route_points.append(a.lerp(b,float(step)/(ROUTE_SAMPLES-1)))
+	layout_encounter_route()
+
+func layout_encounter_route()->void:
+	# The landmark trail joins the four major clearings, but combat stages can
+	# contain more encounters than that short line can pace comfortably. Lay a
+	# broad S-shaped exploration route across the same orientation so every set
+	# advances through new scenery and long boss stages still have room to breathe.
+	encounter_route_points.clear()
+	var half_extent:=Vector2(field_rect.size)*.5-Vector2(10,10)
+	var local_start:=(Vector2(zones[0].center)/half_extent).rotated(-route_orientation)
+	var start_across:=clampf(local_start.y,-.72,.72)
+	var sweep_cycles:=5.0 if stage_kind=="boss" else 4.0
+	for step in 81:
+		var progress:=float(step)/80.0
+		var along:=lerpf(-.94,.90,progress)
+		var across:=lerpf(start_across,0.0,progress)+sin(progress*TAU*sweep_cycles)*.52*sin(progress*PI)
+		encounter_route_points.append(Vector2(along,across).rotated(route_orientation)*half_extent)
+	encounter_route_points[0]=Vector2(zones[0].center)
 
 func in_field(cell:Vector2i)->bool:
 	return field_rect.has_point(cell)
@@ -2212,7 +2235,7 @@ func spawn_wave()->void:
 # the team auto-explores toward it along walkable ground until the player
 # clicks elsewhere. When the last set falls, the boss takes the nearest arena.
 func prepare_spawn_points()->void:
-	spawn_points.clear();used_spawn_points.clear()
+	spawn_points.clear();spawn_route_progresses.clear();used_spawn_points.clear()
 
 func team_centroid()->Vector2:
 	var living:Array=team.filter(func(actor):return actor.current_hp>0)
@@ -2256,32 +2279,63 @@ func fresh_encounter_ground(point:Vector2)->bool:
 		if point.distance_to(old)<ENCOUNTER_REUSE_RADIUS:return false
 	return true
 
-func exploration_sweep_target(from:Vector2)->Vector2:
-	# Successive encounters cross the island in a gentle S-curve. The step size
-	# remains bounded by the existing 22–32 unit walk limits, but the preferred
-	# locations expose both sides of the landscape instead of clustering in one
-	# narrow strip or sending the team to arbitrary far corners.
-	if field_rect.size.x<=0 or field_rect.size.y<=0:return from+Vector2(SET_TARGET_WALK_DISTANCE,0)
-	var progress:=clampf(float(wave)/float(maxi(1,max_waves)),0.0,1.0)
-	var left:=float(field_rect.position.x)+8.0;var right:=float(field_rect.end.x)-8.0
-	var direction:=1.0 if (stage_area_index+stage_node_index)%2==0 else -1.0
-	var side_span:=float(field_rect.size.y)*.18
-	return Vector2(lerpf(left,right,progress),sin(progress*TAU)*side_span*direction)
+func route_progress(point:Vector2,expected:float=-1.0)->float:
+	var sweep:Array[Vector2]=encounter_route_points if not encounter_route_points.is_empty() else route_points
+	if sweep.size()<2:return point.distance_to(zones[0].center) if not zones.is_empty() else 0.0
+	var best_score:=INF;var best_progress:=0.0;var travelled:=0.0
+	for index in range(1,sweep.size()):
+		var a:Vector2=sweep[index-1];var b:Vector2=sweep[index]
+		var segment:=b-a;var length:=segment.length()
+		if length<=.001:continue
+		var along:=clampf((point-a).dot(segment)/(length*length),0.0,1.0)
+		var projected:=a+segment*along;var progress:=travelled+length*along
+		# Near a trail crossing, use the expected next chapter of the route to
+		# distinguish the outward segment from an earlier segment beside it.
+		var progress_error:=progress-expected
+		var score:=point.distance_squared_to(projected)+(progress_error*progress_error*.04 if expected>=0.0 else 0.0)
+		if score<best_score:best_score=score;best_progress=progress
+		travelled+=length
+	return best_progress
 
-func encounter_preference(from:Vector2,point:Vector2,wants_bridge:bool)->float:
+func route_point_at_progress(target:float)->Vector2:
+	var sweep:Array[Vector2]=encounter_route_points if not encounter_route_points.is_empty() else route_points
+	if sweep.is_empty():return zones[0].center if not zones.is_empty() else Vector2.ZERO
+	var travelled:=0.0
+	for index in range(1,sweep.size()):
+		var a:Vector2=sweep[index-1];var b:Vector2=sweep[index];var length:=a.distance_to(b)
+		if travelled+length>=target:return a.lerp(b,clampf((target-travelled)/maxf(length,.001),0.0,1.0))
+		travelled+=length
+	return sweep.back()
+
+func encounter_route_length()->float:
+	var sweep:Array[Vector2]=encounter_route_points if not encounter_route_points.is_empty() else route_points
+	var result:=0.0
+	for index in range(1,sweep.size()):result+=sweep[index-1].distance_to(sweep[index])
+	return result
+
+func exploration_sweep_target(from:Vector2,from_progress:float=-1.0)->Vector2:
+	# Follow the authored trail from its first clearing toward its last regardless
+	# of which edge the randomly rotated map starts on. This removes the old
+	# global-x bias that could send successive fights backward or in a circle.
+	var progress:=route_progress(from) if from_progress<0.0 else from_progress
+	return route_point_at_progress(progress+SET_TARGET_WALK_DISTANCE)
+
+func encounter_preference(from:Vector2,point:Vector2,wants_bridge:bool,goal_progress:float=-1.0)->float:
 	var freshness:=12.0
 	for old in spawn_points:freshness=minf(freshness,point.distance_to(old))
 	# The medium walking-distance score still dominates. Within that ring, favor
 	# the next point of a broad island sweep, fresh scenery, and modest forward
 	# progress. Small lateral/backward turns remain possible without long hikes.
-	var preference:=-point.distance_to(exploration_sweep_target(from))*.55+freshness*.12+clampf(point.x-from.x,-12.0,12.0)*.06
-	if point.x<from.x-6.0:preference-=4.0
+	var target:=route_point_at_progress(goal_progress) if goal_progress>=0.0 else exploration_sweep_target(from)
+	var preference:=-point.distance_to(target)*.65+freshness*.12
 	if wants_bridge and near_encounter_bridge(point):preference+=.6
 	return preference
 
 func pick_spawn_point(for_boss:=false)->int:
 	var from:=team_centroid();var distances:=encounter_distances(from)
 	var previous:Vector2=spawn_points.back() if not spawn_points.is_empty() else from
+	var previous_progress:float=float(spawn_route_progresses.back()) if not spawn_route_progresses.is_empty() else route_progress(previous)
+	var goal_progress:=minf(encounter_route_length(),encounter_route_length()*float(wave)/float(maxi(1,max_waves)))
 	var candidates:Array[Dictionary]=[]
 	var wants_bridge:=not for_boss and wave%3==2
 	for cell:Vector2i in distances:
@@ -2289,10 +2343,7 @@ func pick_spawn_point(for_boss:=false)->int:
 		var point:=Vector2(cell)
 		if not fresh_encounter_ground(point):continue
 		var estimate:=from.distance_to(point) if line_walkable(from,point) else float(distances[cell])
-		var preference:=encounter_preference(from,point,wants_bridge)
-		# Progress is measured from the last encounter, not where ranged fighters
-		# stopped short of it. Prefer a new encounter beyond that location.
-		if point.x>previous.x+3.0:preference+=4.0
+		var preference:=encounter_preference(from,point,wants_bridge,goal_progress)
 		var score:=preference-absf(estimate-SET_TARGET_WALK_DISTANCE)*4.0
 		candidates.append({"point":point,"score":score,"preference":preference})
 	candidates.sort_custom(func(a,b):return a.score>b.score)
@@ -2310,16 +2361,18 @@ func pick_spawn_point(for_boss:=false)->int:
 		for cell:Vector2i in distances:
 			if not cell_open(cell):continue
 			var point:=Vector2(cell)
-			fallback.append({"point":point,"error":absf(float(distances[cell])-SET_TARGET_WALK_DISTANCE)+(0.0 if fresh_encounter_ground(point) else 100.0)})
+			var estimate:=from.distance_to(point) if line_walkable(from,point) else float(distances[cell])
+			fallback.append({"point":point,"error":absf(estimate-SET_TARGET_WALK_DISTANCE)+(0.0 if fresh_encounter_ground(point) else 100.0)})
 		fallback.sort_custom(func(a,b):return a.error<b.error)
-		for candidate in fallback.slice(0,32):
+		for candidate in fallback.slice(0,128):
 			var distance:=encounter_walk_distance(from,candidate.point)
 			if distance<SET_MIN_TEAM_DISTANCE or distance>SET_MAX_WALK_DISTANCE:continue
-			var score:=-absf(distance-SET_TARGET_WALK_DISTANCE)*4.0+encounter_preference(from,candidate.point,wants_bridge)
+			var score:=-absf(distance-SET_TARGET_WALK_DISTANCE)*4.0+encounter_preference(from,candidate.point,wants_bridge,goal_progress)
 			if fresh_encounter_ground(candidate.point):score+=100.0
 			if score>best:best=score;chosen=candidate.point
 	encounter_style="bridge" if wants_bridge and near_encounter_bridge(chosen) else ("surround" if not for_boss and wave%3==0 else "clearing")
 	spawn_points.append(chosen)
+	spawn_route_progresses.append(maxf(previous_progress+MIN_ROUTE_ADVANCE,goal_progress))
 	return spawn_points.size()-1
 
 func encounter_positions(center:Vector2,count:int)->Array[Vector2]:

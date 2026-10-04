@@ -1,5 +1,7 @@
 extends Node3D
 
+const EXPEDITION_STORIES:=preload("res://scripts/expedition_stories.gd")
+
 const SAVE_PATH := "user://quiblets_save.json"
 const HEALTH_BAR_SCRIPT:=preload("res://scripts/quiblet_health_bar.gd")
 const PORTRAIT_COOLDOWN_SCRIPT:=preload("res://scripts/expedition_portrait_cooldown.gd")
@@ -3894,7 +3896,7 @@ func start_expedition(stage_title:String)->void:
 func area_level_data(area_index:int,level_index:int)->Dictionary:
 	var types:=["level","level","level","berry_grove","level","level","boss","optional_berry_grove"]
 	var titles:=["Level 1","Level 2","Level 3","Berry Grove","Level 4","Level 5","Boss Level","Optional Berry Grove"]
-	return {"type":types[level_index],"title":titles[level_index],"level":GameData.expedition_node_level(area_index,level_index),"area":GameData.EXPEDITION_AREAS[area_index],"area_index":area_index,"level_index":level_index}
+	return {"type":types[level_index],"title":titles[level_index],"level":GameData.expedition_node_level(area_index,level_index),"area":GameData.EXPEDITION_AREAS[area_index],"area_index":area_index,"level_index":level_index,"story":EXPEDITION_STORIES.story(area_index,level_index)}
 
 func is_area_unlocked(area_index:int)->bool:
 	if area_index<0 or area_index>=area_progress.size():return false
@@ -3920,6 +3922,8 @@ func show_area_levels(area_index:int)->void:
 	var overlay:=ColorRect.new();overlay.name="AreaLevelsOverlay";overlay.color=Color(.09,.17,.14,.65);overlay.mouse_filter=Control.MOUSE_FILTER_STOP;overlay.z_index=40;content.add_child(overlay);overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_back_button(overlay,BACK_BUTTON_POSITION,close_area_levels)
 	label(overlay,GameData.EXPEDITION_AREAS[selected_area_index],Vector2(240,80),28,Color.WHITE,true,HORIZONTAL_ALIGNMENT_CENTER,800)
+	var next_story_node:=clampi(int(area_progress[selected_area_index]),0,7)
+	label(overlay,("NEXT PAGE — " if int(area_progress[selected_area_index])<8 else "TRAIL JOURNAL — ")+EXPEDITION_STORIES.story(selected_area_index,next_story_node),Vector2(190,124),14,Color.WHITE,false,HORIZONTAL_ALIGNMENT_CENTER,900)
 	transition_to_expedition_music("level")
 	label(overlay,"Your team: %s power • Moves and healing also affect difficulty."%format_team_power(GameData.team_power_rating(team_members_for_progression())),Vector2(150,190),14,Color.WHITE,false,HORIZONTAL_ALIGNMENT_CENTER,980)
 	var route:=Control.new();route.name="AreaLevelRoute";route.position=Vector2(95,250);route.size=Vector2(1090,340);overlay.add_child(route)
@@ -3934,7 +3938,7 @@ func show_area_levels(area_index:int)->void:
 		label(card,"✓ CLEARED" if cleared else (eval.label if unlocked else "LOCKED"),Vector2(5,49),10,eval.color if unlocked else GameData.COLORS.muted,true,HORIZONTAL_ALIGNMENT_CENTER,106)
 		var metrics:Dictionary=eval.metrics
 		label(card,"♥ %s\n⚔ %s\n◎ %s"%[metrics.Survivability,metrics.Damage,metrics.Positioning],Vector2(8,68),9,GameData.COLORS.ink,false,HORIZONTAL_ALIGNMENT_LEFT,100)
-		var click:=Button.new();click.name="PlayLevel%d"%i;click.flat=true;click.position=Vector2.ZERO;click.size=card.size;click.disabled=not unlocked;click.tooltip_text="Recommended team power: %d. Your team: %d. A stat guide; moves and healing also matter."%[int(GameData.expedition_target(selected_area_index,i).power),GameData.team_power_rating(team_members_for_progression())] if unlocked else "Clear the previous level first";click.pressed.connect(request_start_area_level.bind(selected_area_index,i));card.add_child(click)
+		var click:=Button.new();click.name="PlayLevel%d"%i;click.flat=true;click.position=Vector2.ZERO;click.size=card.size;click.disabled=not unlocked;click.tooltip_text=(str(data.story)+"\nRecommended team power: %d. Your team: %d. A stat guide; moves and healing also matter."%[int(GameData.expedition_target(selected_area_index,i).power),GameData.team_power_rating(team_members_for_progression())]) if unlocked else "Clear the previous level first";click.pressed.connect(request_start_area_level.bind(selected_area_index,i));card.add_child(click)
 	var charms:=panel(Rect2(190,610,900,82),Color("#f4efffea"),14);overlay.add_child(charms)
 	add_toggle(charms,"Fortune Charm (%d) • rarer loot"%special_items["Fortune Charm"],Vector2(18,12),fortune_active,func():fortune_active=!fortune_active;show_area_levels(selected_area_index))
 	add_toggle(charms,"Challenger's Charm (%d) • more progress"%special_items["Challenger's Charm"],Vector2(468,12),challenger_active,func():challenger_active=!challenger_active;show_area_levels(selected_area_index))
@@ -3970,6 +3974,14 @@ func start_area_level(area_index:int,level_index:int)->void:
 	expedition.known_optional_areas=discovered_optional_areas.duplicate()
 	expedition.begin(team_data,difficulty_level,fortune_active,challenger_active)
 	build_expedition_hud()
+	show_expedition_story(stage)
+
+func show_expedition_story(stage:Dictionary)->void:
+	if not is_instance_valid(content) or screen!="expedition":return
+	var card:=panel(Rect2(230,18,820,88),Color("#fffdf2ed"),18);card.name="ExpeditionStory";card.z_index=25;card.mouse_filter=Control.MOUSE_FILTER_IGNORE;content.add_child(card)
+	var heading:=label(card,"%s • %s"%[str(stage.area).to_upper(),str(stage.title).to_upper()],Vector2(22,10),12,GameData.COLORS.leaf_dark,true,HORIZONTAL_ALIGNMENT_CENTER,776);heading.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var sentence:=label(card,str(stage.story),Vector2(22,32),14,GameData.COLORS.ink,false,HORIZONTAL_ALIGNMENT_CENTER,776);sentence.name="ExpeditionStoryText";sentence.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var tween:=card.create_tween();tween.tween_interval(8.0);tween.tween_property(card,"modulate:a",0.0,.8);tween.tween_callback(card.queue_free)
 
 func request_start_area_level(area_index:int,level_index:int)->void:
 	if Time.get_ticks_msec()<area_level_selection_ready_msec:return
