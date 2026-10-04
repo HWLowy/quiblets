@@ -5,10 +5,10 @@ a new Codex task. It records who owns which repository, what the family branch
 preserves, the current release state, how upstream updates are reconciled, how
 the iPad build is produced, and how Haley prefers to work through changes.
 
-Snapshot date: **September 26, 2026**
+Snapshot date: **October 3, 2026**
 Local branch: **`ipad-release`**  
-Latest code merge: **`2b8269a` — Merge Brighton campaign rebalance and base
-camp music**
+Latest code change: **`46d80f2` — Add quiet expedition stories and roomier
+routes**
 Latest reviewed Brighton commit: **`c6d2d4c` — Rebalance campaign combat and
 rewards, refresh expedition layouts**
 
@@ -61,6 +61,8 @@ Do not make family changes directly on Brighton's `main`. Work on
 At this snapshot:
 
 - `upstream/main` is at `c6d2d4c` and has been merged in `2b8269a`.
+- Brighton's repository was rechecked on October 3 and still has no commit newer
+  than `c6d2d4c`.
 - The merge adopts Brighton's campaign combat/reward rebalance, replay layout
   refresh, move-slot and Psychic systems, new models, and his Base Camp menu
   music continuity fix.
@@ -71,23 +73,31 @@ At this snapshot:
 - Untouched family adaptations remain: iPad input/scrolling and navigation,
   the integrated Recycler, default Brighton spice presentation, and draggable
   removal/replacement of placed garden seeds and fertilizer.
+- Family commit `46d80f2` adds Zippet's living-spark silhouette, medium 26–38-
+  unit encounter walks along ordered rotated S-routes, and the 160-sentence Camp
+  Almanac story spanning all twenty regions.
 - `project.godot` has been restored to its required committed iPad settings and
   is clean. Both iOS minimum-version entries now specify 15.0.
-- A fresh build from merge commit `2b8269a` was exported, signed,
+- A fresh build from family commit `46d80f2` was exported, signed,
   signature-verified, and installed successfully on **Gra Skanegas** on
-  September 26. It has not been launched automatically because doing so would
+  October 3. It has not been launched automatically because doing so would
   access the real player save. Manual launch plus a short Base Camp music,
-  workshop, gardening, expedition, and combat play test remain pending.
+  workshop, gardening, expedition-story, Zippet, and combat play test remain
+  pending.
 
-Six untracked test `.uid` files remain. They are generated Godot metadata and
+Ten untracked script `.uid` files remain. They are generated Godot metadata and
 were intentionally not swept into the merge commit:
 
+- `scripts/expedition_stories.gd.uid`
+- `tests/encounter_routes.gd.uid`
+- `tests/expedition_stories.gd.uid`
 - `tests/navigation_flows.gd.uid`
 - `tests/power_stone_recycling.gd.uid`
 - `tests/recycler_visual.gd.uid`
 - `tests/stone_inventory_tabs.gd.uid`
 - `tests/stone_inventory_tabs_preview.gd.uid`
 - `tests/stone_recycler_preview.gd.uid`
+- `tests/zippet_visual.gd.uid`
 
 The first checks in a new task should therefore be:
 
@@ -144,6 +154,8 @@ keeps these only where Bright has not supplied a comparable replacement:
 - Brighton's supplied Spriggle, Frondle, and Bloomie models take precedence.
   The older procedural definitions remain dormant fallbacks only.
 - Sparko and Scorchit rounded, varied-height three-flame crowns.
+- Zippet's compact living-spark body and small pale electric charge mark, used
+  only while Brighton has not supplied an imported Zippet model.
 
 The hooks are deliberately isolated so an upstream model update can replace the
 art without discarding the whole iPad branch.
@@ -176,8 +188,13 @@ art without discarding the whole iPad branch.
 - Berry Groves use Brighton's repaired dedicated loop.
 - Berry Groves use Brighton's screen-edge indicators for remaining patches;
   the temporary family ground arrow has been removed.
-- Regular encounters follow a broader S-shaped route with a 22–32-unit walking
-  budget, preserving exploration without the former long empty walks.
+- Regular encounters follow an ordered, map-rotation-aware S-shaped route with
+  a 26–38-unit walking budget and 32-unit target, preserving roughly medium
+  exploration breaks without the former long empty walks or tight circles.
+- The Camp Almanac supplies one gentle story sentence for every route node. The
+  next sentence is previewed on the route screen and the chosen sentence appears
+  briefly at expedition start; sixteen main-region arcs form the whole journey
+  and four hidden regions provide side stories.
 - Every spice surface uses Brighton's default compact symbol display. Names,
   qualities, effects, tooltips, and inventory data remain available without the
   family branch's larger custom overlays.
@@ -318,6 +335,9 @@ Important focused checks include:
 - `tests/cooking_quality.gd`
 - `tests/music_states.gd`
 - `tests/encounter_pacing.gd`
+- `tests/encounter_routes.gd`
+- `tests/expedition_stories.gd`
+- `tests/large_maps.gd`
 - `tests/stone_workshop.gd`
 
 Interactive preview scenes include:
@@ -326,6 +346,7 @@ Interactive preview scenes include:
 - `tests/quiblet_portrait_preview.tscn`
 - `tests/stone_recycler_preview.tscn`
 - `tests/stone_inventory_tabs_preview.tscn`
+- `tests/zippet_visual.gd` (run graphically through `--script -- --no-save`)
 
 Never test with the player's real save. Follow `AGENTS.md`, prefer headless
 checks, and use `-- --no-save` for graphical test runs. After using F6 on a
@@ -360,10 +381,10 @@ What this achieves: the exported package contains the real game.
 Always export to a new folder named for the current commit. Do not reuse an old
 Xcode snapshot because its `.pck` can contain an earlier game.
 
-The latest successful export is:
+The latest fresh export is:
 
 ```text
-/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-2b8269a-xcode/Quiblets.xcodeproj
+/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-46d80f2-xcode/Quiblets.xcodeproj
 ```
 
 Success criterion: Godot finishes the iOS export and the new folder contains
@@ -413,7 +434,7 @@ and it progresses beyond the Godot loading screen.
 What this achieves: the current branch is installed as a playable development
 build.
 
-On September 26, Xcode compiled and provisioned the app, but the document-
+On October 3, Xcode compiled and provisioned the `46d80f2` app, but the document-
 provider-backed build path attached Finder metadata that blocked the final
 code-sign command. Copying the completed app with `ditto --norsrc --noextattr`
 to `/private/tmp`, then signing it with Xcode's generated entitlements, produced

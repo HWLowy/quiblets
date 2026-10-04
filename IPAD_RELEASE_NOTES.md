@@ -5,7 +5,7 @@ release process for the family iPad edition maintained on the `ipad-release`
 branch of `HWLowy/quiblets`.
 
 Status: **Playable family test build**  
-Last updated: **September 26, 2026**
+Last updated: **October 3, 2026**
 Latest integrated upstream commit: **`c6d2d4c`**
 Godot entry scene for an actual build: **`res://main.tscn`**
 
@@ -52,6 +52,46 @@ Godot can temporarily change this setting after running an individual preview
 scene with F6. The export guard in `tests/smoke.gd` detects that mistake.
 
 ## Completed work
+
+### October 3 exploration, Zippet, and Camp Almanac update
+
+- Rechecked Brighton's live repository before editing. `c6d2d4c` remains the
+  latest upstream commit, so no additional Brighton merge was required.
+- Refined Zippet around its existing fast electric skirmisher move set: Zap,
+  Shock Touch, Zip, Jolt Kick, Static Pulse, Flashstep, Friction Dash,
+  Thunderclap, and Zigzag. Its procedural round body is now a compact,
+  forward-leaning living-spark silhouette with a small pale charge mark, while
+  retaining the familiar face, feet, colors, stats, and moves.
+- Increased regular encounter walking bounds from 22–32 units to 26–38 units,
+  with a 32-unit target. Successive sets now follow an ordered, map-rotation-
+  aware S-route instead of using global left-to-right bias, leaving a medium
+  exploration break while keeping enclosed landscapes traversable.
+- Added the **Camp Almanac** progression story: eight one-sentence journal beats
+  for each of twenty regions, for 160 total. The sixteen main regions form one
+  gentle journey about learning how each land thrives; the four hidden regions
+  add small side discoveries. The next page appears on the route screen and the
+  chosen level's sentence appears briefly when its expedition begins.
+- Preserved Brighton's current gameplay and artwork elsewhere, including Base
+  Camp music continuity, default spice symbols, current training and
+  revitalization systems, and the family edition's removable garden seed and
+  fertilizer slots.
+- Corrected an older maintained override name so Flaret once again receives the
+  approved three-flame crown under Brighton's current species name. Updated the
+  stale large-map regression only to match Brighton's current river scaling and
+  rotated layouts; game terrain rules were not changed by that correction.
+- Verification passed: full smoke, 627 expedition-area checks, 24 deterministic
+  encounter-route transitions, all 160 story beats, current large maps, Electric
+  Quiblet behavior, visual overrides, Base Camp menu music, and removable garden
+  slots with in-memory persistence. Zippet's graphical preview was rendered
+  through a `--script` no-save entry point and visually inspected.
+- Committed the tested game update as `46d80f2` and exported a fresh iOS Xcode
+  project to
+  `/Users/haleylowy/Documents/Codex/2026-09-10/i/work/build/ios-preview-46d80f2-xcode`.
+- Xcode compiled and provisioned that build for the existing family-development
+  identity. After removing the document-provider metadata with the established
+  clean-copy workaround, the app passed strict signature verification and was
+  installed successfully on **Gra Skanegas** under the existing bundle ID on
+  October 3. It was not launched automatically, protecting the real player save.
 
 ### September 26 Brighton campaign update and iPad release
 
@@ -573,13 +613,14 @@ as a functional merge failure.
 
 ## Current device release
 
-The current September 26 device build is merge commit `2b8269a`, including
+The current October 3 device build is family commit `46d80f2`, layered on
 Brighton's upstream `c6d2d4c` campaign update and Base Camp menu-music fix. It
 is installed on **Gra Skanegas** under the existing bundle identifier. Automated
-checks passed for Base Camp continuity, real-audio loops and crossfades, smoke
-and save isolation, training, Stone Workshop, gardening, item navigation, iPad
-touch behavior, combat and rewards, replay layouts, and all 160 campaign nodes.
-Manual launch and the short physical play test are the only remaining checks.
+checks passed for the new Zippet presentation, medium encounter routes, all 160
+Camp Almanac story beats, Base Camp continuity, smoke and save isolation,
+training, Stone Workshop, gardening, large maps, Electric Quiblet behavior, and
+visual overrides. Manual launch and the short physical play test are the only
+remaining checks.
 
 Future entries should record the date, commit, reason for the change, exact
 player-visible behavior, important values or decisions, tests performed, and
